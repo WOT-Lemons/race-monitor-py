@@ -15,8 +15,8 @@ class RaceMonitorClient:
         self._http.__enter__()
         return self
 
-    def __exit__(self, *args) -> None:
-        self._http.__exit__(*args)
+    def __exit__(self, *args):
+        return self._http.__exit__(*args)
 
     def _post(self, path: str, **kwargs) -> dict:
         data = {"apiToken": self._token, **kwargs}

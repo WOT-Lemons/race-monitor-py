@@ -11,6 +11,21 @@ from ._namespaces.results import AsyncResultsNamespace
 
 
 class AsyncRaceMonitorClient:
+    """Asynchronous Race Monitor API client.
+
+    Args:
+        api_token: Your Race Monitor API token.
+        retry_delay: Seconds to wait before retrying a 429 response. Defaults
+            to 10s (the developer plan rate limit window).
+        **kwargs: Passed through to ``httpx.AsyncClient`` (e.g. ``transport`` for testing).
+
+    Example::
+
+        async with AsyncRaceMonitorClient(api_token="TOKEN") as client:
+            if (await client.race.is_live(race_id=12345))["IsLive"]:
+                session = await client.live.get_session(race_id=12345)
+    """
+
     def __init__(self, api_token: str, retry_delay: float = 10.0, **kwargs) -> None:
         self._token = api_token
         self._retry_delay = retry_delay

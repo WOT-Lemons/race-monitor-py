@@ -219,3 +219,6 @@ __marimo__/
 
 # Claude
 docs/superpowers
+
+# Generated API docs
+docs/api/

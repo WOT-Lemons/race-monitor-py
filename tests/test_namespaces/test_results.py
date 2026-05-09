@@ -89,6 +89,14 @@ def test_search_results(make_client):
     assert b"searchTerm=lemons" in transport.last_request.read()
 
 
+def test_search_results_with_app_section_id(make_client):
+    client, transport = make_client((200, SUCCESS))
+    client.results.search_results(search_term="lemons", app_section_id=3)
+    body = transport.last_request.read()
+    assert b"searchTerm=lemons" in body
+    assert b"appSectionID=3" in body
+
+
 def test_sessions_in_date_range(make_client):
     client, transport = make_client((200, SUCCESS))
     client.results.sessions_in_date_range_for_race(

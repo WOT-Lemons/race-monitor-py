@@ -16,6 +16,11 @@ class MockTransport(httpx.BaseTransport):
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         self._last_request = request
+        if self._index >= len(self._responses):
+            raise RuntimeError(
+                f"MockTransport exhausted after {len(self._responses)} response(s); "
+                f"request {self._index + 1} was not expected: {request.url}"
+            )
         status, body = self._responses[self._index]
         self._index += 1
         return httpx.Response(status, json=body)
@@ -35,6 +40,11 @@ class AsyncMockTransport(httpx.AsyncBaseTransport):
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         self._last_request = request
+        if self._index >= len(self._responses):
+            raise RuntimeError(
+                f"AsyncMockTransport exhausted after {len(self._responses)} response(s); "
+                f"request {self._index + 1} was not expected: {request.url}"
+            )
         status, body = self._responses[self._index]
         self._index += 1
         return httpx.Response(status, json=body)

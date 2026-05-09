@@ -70,7 +70,9 @@ class AsyncAccountNamespace:
             series_id: Filter by series ID. 0 returns all.
             race_type_id: Filter by race type ID. 0 returns all.
         """
-        return await self._post("/v2/Account/CurrentRaces", seriesID=series_id, raceTypeID=race_type_id)
+        return await self._post(
+            "/v2/Account/CurrentRaces", seriesID=series_id, raceTypeID=race_type_id
+        )
 
     async def past_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
         """Get past races associated with your relaying account.
@@ -79,7 +81,9 @@ class AsyncAccountNamespace:
             series_id: Filter by series ID. 0 returns all.
             race_type_id: Filter by race type ID. 0 returns all.
         """
-        return await self._post("/v2/Account/PastRaces", seriesID=series_id, raceTypeID=race_type_id)
+        return await self._post(
+            "/v2/Account/PastRaces", seriesID=series_id, raceTypeID=race_type_id
+        )
 
     async def series(self) -> dict:
         """Get series that your account has permission for."""
@@ -92,4 +96,6 @@ class AsyncAccountNamespace:
             series_id: Filter by series ID. 0 returns all.
             race_type_id: Filter by race type ID. 0 returns all.
         """
-        return await self._post("/v2/Account/UpcomingRaces", seriesID=series_id, raceTypeID=race_type_id)
+        return await self._post(
+            "/v2/Account/UpcomingRaces", seriesID=series_id, raceTypeID=race_type_id
+        )

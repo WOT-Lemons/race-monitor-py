@@ -5,6 +5,7 @@ import httpx
 from ._core import BASE_URL, _parse_response
 from ._namespaces.live import AsyncLiveNamespace
 from ._namespaces.race import AsyncRaceNamespace
+from ._namespaces.results import AsyncResultsNamespace
 
 
 class AsyncRaceMonitorClient:
@@ -14,6 +15,7 @@ class AsyncRaceMonitorClient:
         self._http = httpx.AsyncClient(**kwargs)
         self.live = AsyncLiveNamespace(self._post)
         self.race = AsyncRaceNamespace(self._post)
+        self.results = AsyncResultsNamespace(self._post)
 
     async def __aenter__(self) -> "AsyncRaceMonitorClient":
         await self._http.__aenter__()

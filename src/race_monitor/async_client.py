@@ -3,6 +3,7 @@ import asyncio
 import httpx
 
 from ._core import BASE_URL, _parse_response
+from ._namespaces.live import AsyncLiveNamespace
 from ._namespaces.race import AsyncRaceNamespace
 
 
@@ -11,6 +12,7 @@ class AsyncRaceMonitorClient:
         self._token = api_token
         self._retry_delay = retry_delay
         self._http = httpx.AsyncClient(**kwargs)
+        self.live = AsyncLiveNamespace(self._post)
         self.race = AsyncRaceNamespace(self._post)
 
     async def __aenter__(self) -> "AsyncRaceMonitorClient":

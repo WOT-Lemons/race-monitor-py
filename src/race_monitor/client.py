@@ -3,6 +3,7 @@ import time
 import httpx
 
 from ._core import BASE_URL, _parse_response
+from ._namespaces.live import LiveNamespace
 from ._namespaces.race import RaceNamespace
 
 
@@ -11,6 +12,7 @@ class RaceMonitorClient:
         self._token = api_token
         self._retry_delay = retry_delay
         self._http = httpx.Client(**kwargs)
+        self.live = LiveNamespace(self._post)
         self.race = RaceNamespace(self._post)
 
     def __enter__(self) -> "RaceMonitorClient":

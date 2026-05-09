@@ -1,0 +1,31 @@
+import time
+
+import httpx
+
+from ._core import BASE_URL, _parse_response
+
+
+class RaceMonitorClient:
+    def __init__(self, api_token: str, retry_delay: float = 10.0, **kwargs) -> None:
+        self._token = api_token
+        self._retry_delay = retry_delay
+        self._http = httpx.Client(**kwargs)
+
+    def __enter__(self) -> "RaceMonitorClient":
+        self._http.__enter__()
+        return self
+
+    def __exit__(self, *args) -> None:
+        self._http.__exit__(*args)
+
+    def _post(self, path: str, **kwargs) -> dict:
+        data = {"apiToken": self._token, **kwargs}
+        while True:
+            response = self._http.post(f"{BASE_URL}{path}", data=data, timeout=30)
+            if response.status_code == 429:
+                time.sleep(self._retry_delay)
+                continue
+            return _parse_response(response)
+
+    def post(self, path: str, **kwargs) -> dict:
+        return self._post(path, **kwargs)

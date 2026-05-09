@@ -1,0 +1,68 @@
+import httpx
+import pytest
+
+
+class MockTransport(httpx.BaseTransport):
+    """Replays a fixed sequence of (status_code, json_body) responses."""
+
+    def __init__(self, *responses: tuple[int, dict]) -> None:
+        self._responses = list(responses)
+        self._index = 0
+        self._last_request: httpx.Request | None = None
+
+    @property
+    def last_request(self) -> httpx.Request:
+        return self._last_request
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        self._last_request = request
+        status, body = self._responses[self._index]
+        self._index += 1
+        return httpx.Response(status, json=body)
+
+
+class AsyncMockTransport(httpx.AsyncBaseTransport):
+    """Async version of MockTransport."""
+
+    def __init__(self, *responses: tuple[int, dict]) -> None:
+        self._responses = list(responses)
+        self._index = 0
+        self._last_request: httpx.Request | None = None
+
+    @property
+    def last_request(self) -> httpx.Request:
+        return self._last_request
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        self._last_request = request
+        status, body = self._responses[self._index]
+        self._index += 1
+        return httpx.Response(status, json=body)
+
+
+@pytest.fixture
+def make_client():
+    from race_monitor import RaceMonitorClient
+
+    def _make(*responses: tuple[int, dict], retry_delay: float = 0) -> tuple:
+        transport = MockTransport(*responses)
+        client = RaceMonitorClient(
+            api_token="test-token", retry_delay=retry_delay, transport=transport
+        )
+        return client, transport
+
+    return _make
+
+
+@pytest.fixture
+def make_async_client():
+    from race_monitor import AsyncRaceMonitorClient
+
+    def _make(*responses: tuple[int, dict], retry_delay: float = 0) -> tuple:
+        transport = AsyncMockTransport(*responses)
+        client = AsyncRaceMonitorClient(
+            api_token="test-token", retry_delay=retry_delay, transport=transport
+        )
+        return client, transport
+
+    return _make

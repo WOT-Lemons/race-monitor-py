@@ -4,6 +4,7 @@ import httpx
 
 from ._core import BASE_URL, _parse_response
 from ._namespaces.account import AsyncAccountNamespace
+from ._namespaces.common import AsyncCommonNamespace
 from ._namespaces.live import AsyncLiveNamespace
 from ._namespaces.race import AsyncRaceNamespace
 from ._namespaces.results import AsyncResultsNamespace
@@ -15,6 +16,7 @@ class AsyncRaceMonitorClient:
         self._retry_delay = retry_delay
         self._http = httpx.AsyncClient(**kwargs)
         self.account = AsyncAccountNamespace(self._post)
+        self.common = AsyncCommonNamespace(self._post)
         self.live = AsyncLiveNamespace(self._post)
         self.race = AsyncRaceNamespace(self._post)
         self.results = AsyncResultsNamespace(self._post)

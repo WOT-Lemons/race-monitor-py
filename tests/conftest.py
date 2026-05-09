@@ -12,6 +12,8 @@ class MockTransport(httpx.BaseTransport):
 
     @property
     def last_request(self) -> httpx.Request:
+        if self._last_request is None:
+            raise AttributeError("last_request accessed before any request was made")
         return self._last_request
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
@@ -36,6 +38,8 @@ class AsyncMockTransport(httpx.AsyncBaseTransport):
 
     @property
     def last_request(self) -> httpx.Request:
+        if self._last_request is None:
+            raise AttributeError("last_request accessed before any request was made")
         return self._last_request
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:

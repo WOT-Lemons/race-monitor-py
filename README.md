@@ -2,6 +2,8 @@
 
 A Python library for [Race Monitor](https://www.race-monitor.com/)
 
+![Tests](https://github.com/WOT-Lemons/race-monitor-py/actions/workflows/pytest.yml/badge.svg?branch=main)
+
 ## Requirements
 
 - Python 3.10 or later

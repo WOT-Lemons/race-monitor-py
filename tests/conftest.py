@@ -54,6 +54,16 @@ class AsyncMockTransport(httpx.AsyncBaseTransport):
         return httpx.Response(status, json=body)
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiters():
+    from race_monitor._rate_limiter import _async_limiters, _sync_limiters
+    _sync_limiters.clear()
+    _async_limiters.clear()
+    yield
+    _sync_limiters.clear()
+    _async_limiters.clear()
+
+
 @pytest.fixture
 def make_client():
     from race_monitor import RaceMonitorClient

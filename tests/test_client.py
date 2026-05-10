@@ -59,3 +59,19 @@ def test_context_manager(make_client):
     with client as c:
         result = c.post("/v2/Race/RaceDetails", raceID=1)
     assert result == SUCCESS
+
+
+def test_rate_limiter_acquire_called_before_request(make_client, monkeypatch):
+    acquire_calls = []
+    client, _ = make_client((200, SUCCESS))
+    monkeypatch.setattr(client._limiter, "acquire", lambda: acquire_calls.append(1))
+    client.post("/v2/Race/RaceDetails", raceID=1)
+    assert acquire_calls == [1]
+
+
+def test_rate_limiter_acquire_called_on_each_attempt(make_client, monkeypatch):
+    acquire_calls = []
+    client, _ = make_client((429, {}), (200, SUCCESS), retry_delay=0)
+    monkeypatch.setattr(client._limiter, "acquire", lambda: acquire_calls.append(1))
+    client.post("/v2/Race/RaceDetails", raceID=1)
+    assert acquire_calls == [1, 1]

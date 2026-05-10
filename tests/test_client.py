@@ -75,3 +75,27 @@ def test_rate_limiter_acquire_called_on_each_attempt(make_client, monkeypatch):
     monkeypatch.setattr(client._limiter, "acquire", lambda: acquire_calls.append(1))
     client.post("/v2/Race/RaceDetails", raceID=1)
     assert acquire_calls == [1, 1]
+
+
+async def test_async_rate_limiter_acquire_called_before_request(make_async_client, monkeypatch):
+    acquire_calls = []
+    client, _ = make_async_client((200, SUCCESS))
+
+    async def mock_acquire():
+        acquire_calls.append(1)
+
+    monkeypatch.setattr(client._limiter, "acquire", mock_acquire)
+    await client.post("/v2/Race/RaceDetails", raceID=1)
+    assert acquire_calls == [1]
+
+
+async def test_async_rate_limiter_acquire_called_on_each_attempt(make_async_client, monkeypatch):
+    acquire_calls = []
+    client, _ = make_async_client((429, {}), (200, SUCCESS), retry_delay=0)
+
+    async def mock_acquire():
+        acquire_calls.append(1)
+
+    monkeypatch.setattr(client._limiter, "acquire", mock_acquire)
+    await client.post("/v2/Race/RaceDetails", raceID=1)
+    assert acquire_calls == [1, 1]

@@ -25,6 +25,12 @@ dependencies = [
     "httpx>=0.27",
 ]
 
+[project.urls]
+Homepage = "https://wot-lemons.github.io/race-monitor-py"
+Source = "https://github.com/WOT-Lemons/race-monitor-py"
+"Bug Tracker" = "https://github.com/WOT-Lemons/race-monitor-py/issues"
+Changelog = "https://github.com/WOT-Lemons/race-monitor-py/blob/main/CHANGELOG.md"
+
 [tool.hatch.version]
 source = "regex"
 path = "VERSION"

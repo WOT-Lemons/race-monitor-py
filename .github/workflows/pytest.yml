@@ -1,6 +1,14 @@
 name: Python Tests
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/pytest.yml'
+      - '**.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
   pull_request:
     branches:
       - main

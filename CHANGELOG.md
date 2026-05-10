@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.2.0...v0.3.0) (2026-05-10)
+
+
+### Features
+
+* proactive sliding window rate limiter ([#11](https://github.com/WOT-Lemons/race-monitor-py/issues/11)) ([dd4a2c0](https://github.com/WOT-Lemons/race-monitor-py/commit/dd4a2c03e13467ccb66e9e67898f483946857634))
+
 ## [0.2.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.1.0...v0.2.0) (2026-05-10)
 
 

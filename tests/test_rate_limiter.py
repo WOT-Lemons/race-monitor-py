@@ -44,7 +44,7 @@ def test_sync_sleeps_when_rate_exceeded(monkeypatch):
     assert slept[0] == pytest.approx(60.0)
 
 
-def test_sync_logs_warning_when_throttled(monkeypatch, caplog):
+def test_sync_logs_info_when_throttled(monkeypatch, caplog):
     t = [0.0]
     monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
 
@@ -57,7 +57,7 @@ def test_sync_logs_warning_when_throttled(monkeypatch, caplog):
     limiter.acquire()  # slot 1
     limiter.acquire()  # slot 2 — full
 
-    with caplog.at_level(logging.WARNING, logger="race_monitor._rate_limiter"):
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
         limiter.acquire()  # throttled → should log
 
     assert "Rate limited" in caplog.text
@@ -68,7 +68,7 @@ def test_sync_logs_warning_when_throttled(monkeypatch, caplog):
 
 def test_sync_no_log_when_not_throttled(caplog):
     limiter = _SyncRateLimiter(rate=3, window=60.0)
-    with caplog.at_level(logging.WARNING, logger="race_monitor._rate_limiter"):
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
         limiter.acquire()
     assert caplog.text == ""
 
@@ -108,7 +108,7 @@ async def test_async_sleeps_when_rate_exceeded(monkeypatch):
     assert slept[0] == pytest.approx(60.0)
 
 
-async def test_async_logs_warning_when_throttled(monkeypatch, caplog):
+async def test_async_logs_info_when_throttled(monkeypatch, caplog):
     t = [0.0]
     monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
 
@@ -121,7 +121,7 @@ async def test_async_logs_warning_when_throttled(monkeypatch, caplog):
     await limiter.acquire()  # slot 1
     await limiter.acquire()  # slot 2 — full
 
-    with caplog.at_level(logging.WARNING, logger="race_monitor._rate_limiter"):
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
         await limiter.acquire()  # throttled → should log
 
     assert "Rate limited" in caplog.text
@@ -132,7 +132,7 @@ async def test_async_logs_warning_when_throttled(monkeypatch, caplog):
 
 async def test_async_no_log_when_not_throttled(caplog):
     limiter = _AsyncRateLimiter(rate=3, window=60.0)
-    with caplog.at_level(logging.WARNING, logger="race_monitor._rate_limiter"):
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
         await limiter.acquire()
     assert caplog.text == ""
 

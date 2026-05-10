@@ -31,7 +31,7 @@ class _SyncRateLimiter:
                 wait = self._window - (now - self._timestamps[0])
                 slots_used = len(self._timestamps)
                 oldest_age = now - self._timestamps[0]
-            _logger.warning(
+            _logger.info(
                 "Rate limited: sleeping %.2fs [%d/%d slots used over %.0fs window; oldest request %.2fs ago]",
                 max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
             )
@@ -59,7 +59,7 @@ class _AsyncRateLimiter:
                 wait = self._window - (now - self._timestamps[0])
                 slots_used = len(self._timestamps)
                 oldest_age = now - self._timestamps[0]
-            _logger.warning(
+            _logger.info(
                 "Rate limited: sleeping %.2fs [%d/%d slots used over %.0fs window; oldest request %.2fs ago]",
                 max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
             )

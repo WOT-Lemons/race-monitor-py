@@ -9,6 +9,11 @@ from race_monitor._rate_limiter import (
 
 # --- _SyncRateLimiter ---
 
+def test_sync_limiter_rejects_invalid_rate():
+    with pytest.raises(ValueError, match="rate must be >= 1"):
+        _SyncRateLimiter(rate=0)
+
+
 def test_sync_allows_requests_within_rate():
     limiter = _SyncRateLimiter(rate=3, window=60.0)
     for _ in range(3):
@@ -38,6 +43,11 @@ def test_sync_sleeps_when_rate_exceeded(monkeypatch):
 
 
 # --- _AsyncRateLimiter ---
+
+async def test_async_limiter_rejects_invalid_rate():
+    with pytest.raises(ValueError, match="rate must be >= 1"):
+        _AsyncRateLimiter(rate=0)
+
 
 async def test_async_allows_requests_within_rate():
     limiter = _AsyncRateLimiter(rate=3, window=60.0)

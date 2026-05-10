@@ -10,6 +10,8 @@ _registry_lock = threading.Lock()
 
 class _SyncRateLimiter:
     def __init__(self, rate: int, window: float = 60.0) -> None:
+        if rate < 1:
+            raise ValueError(f"rate must be >= 1, got {rate}")
         self._rate = rate
         self._window = window
         self._timestamps: deque[float] = deque()
@@ -30,6 +32,8 @@ class _SyncRateLimiter:
 
 class _AsyncRateLimiter:
     def __init__(self, rate: int, window: float = 60.0) -> None:
+        if rate < 1:
+            raise ValueError(f"rate must be >= 1, got {rate}")
         self._rate = rate
         self._window = window
         self._timestamps: deque[float] = deque()
@@ -49,6 +53,11 @@ class _AsyncRateLimiter:
 
 
 def get_sync_limiter(token: str, rate: int, window: float) -> _SyncRateLimiter:
+    """Return the rate limiter for *token*, creating it if needed.
+
+    ``rate`` and ``window`` are only used on first creation; subsequent calls
+    for the same token return the existing instance regardless of the params.
+    """
     with _registry_lock:
         if token not in _sync_limiters:
             _sync_limiters[token] = _SyncRateLimiter(rate, window)
@@ -56,6 +65,11 @@ def get_sync_limiter(token: str, rate: int, window: float) -> _SyncRateLimiter:
 
 
 def get_async_limiter(token: str, rate: int, window: float) -> _AsyncRateLimiter:
+    """Return the async rate limiter for *token*, creating it if needed.
+
+    ``rate`` and ``window`` are only used on first creation; subsequent calls
+    for the same token return the existing instance regardless of the params.
+    """
     with _registry_lock:
         if token not in _async_limiters:
             _async_limiters[token] = _AsyncRateLimiter(rate, window)

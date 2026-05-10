@@ -101,3 +101,15 @@ def test_get_async_limiter_different_tokens_return_different_instances():
     a = get_async_limiter("registry-async-a", 6, 60.0)
     b = get_async_limiter("registry-async-b", 6, 60.0)
     assert a is not b
+
+
+def test_get_sync_limiter_raises_on_conflicting_rate():
+    get_sync_limiter("conflict-sync", 6, 60.0)
+    with pytest.raises(ValueError, match="already exists"):
+        get_sync_limiter("conflict-sync", 10, 60.0)
+
+
+def test_get_async_limiter_raises_on_conflicting_rate():
+    get_async_limiter("conflict-async", 6, 60.0)
+    with pytest.raises(ValueError, match="already exists"):
+        get_async_limiter("conflict-async", 10, 60.0)

@@ -55,22 +55,36 @@ class _AsyncRateLimiter:
 def get_sync_limiter(token: str, rate: int, window: float) -> _SyncRateLimiter:
     """Return the rate limiter for *token*, creating it if needed.
 
-    ``rate`` and ``window`` are only used on first creation; subsequent calls
-    for the same token return the existing instance regardless of the params.
+    Raises ``ValueError`` if a limiter already exists for *token* with different
+    ``rate`` or ``window`` values — callers sharing a token must agree on the config.
     """
     with _registry_lock:
-        if token not in _sync_limiters:
-            _sync_limiters[token] = _SyncRateLimiter(rate, window)
-        return _sync_limiters[token]
+        limiter = _sync_limiters.get(token)
+        if limiter is None:
+            limiter = _SyncRateLimiter(rate, window)
+            _sync_limiters[token] = limiter
+        elif limiter._rate != rate or limiter._window != window:
+            raise ValueError(
+                f"Limiter for token already exists with rate={limiter._rate}, "
+                f"window={limiter._window}; got rate={rate}, window={window}"
+            )
+        return limiter
 
 
 def get_async_limiter(token: str, rate: int, window: float) -> _AsyncRateLimiter:
     """Return the async rate limiter for *token*, creating it if needed.
 
-    ``rate`` and ``window`` are only used on first creation; subsequent calls
-    for the same token return the existing instance regardless of the params.
+    Raises ``ValueError`` if a limiter already exists for *token* with different
+    ``rate`` or ``window`` values — callers sharing a token must agree on the config.
     """
     with _registry_lock:
-        if token not in _async_limiters:
-            _async_limiters[token] = _AsyncRateLimiter(rate, window)
-        return _async_limiters[token]
+        limiter = _async_limiters.get(token)
+        if limiter is None:
+            limiter = _AsyncRateLimiter(rate, window)
+            _async_limiters[token] = limiter
+        elif limiter._rate != rate or limiter._window != window:
+            raise ValueError(
+                f"Limiter for token already exists with rate={limiter._rate}, "
+                f"window={limiter._window}; got rate={rate}, window={window}"
+            )
+        return limiter

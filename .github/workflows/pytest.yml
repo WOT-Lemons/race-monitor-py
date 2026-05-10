@@ -5,10 +5,10 @@ on:
     branches:
       - main
     paths:
+      - '.github/workflows/pytest.yml'
       - '**.py'
       - 'pyproject.toml'
       - 'uv.lock'
-      - '.github/workflows/pytest.yml'
 
 jobs:
   test:

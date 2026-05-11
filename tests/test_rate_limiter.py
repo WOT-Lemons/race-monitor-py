@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from race_monitor._rate_limiter import (
     _AsyncRateLimiter,
@@ -42,6 +44,35 @@ def test_sync_sleeps_when_rate_exceeded(monkeypatch):
     assert slept[0] == pytest.approx(60.0)
 
 
+def test_sync_logs_info_when_throttled(monkeypatch, caplog):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+
+    def mock_sleep(secs):
+        t[0] += secs
+
+    monkeypatch.setattr("race_monitor._rate_limiter.time.sleep", mock_sleep)
+
+    limiter = _SyncRateLimiter(rate=2, window=60.0)
+    limiter.acquire()  # slot 1
+    limiter.acquire()  # slot 2 — full
+
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
+        limiter.acquire()  # throttled → should log
+
+    assert "Rate limited" in caplog.text
+    assert "2/2" in caplog.text
+    assert "60" in caplog.text
+    assert "sleeping" in caplog.text
+
+
+def test_sync_no_log_when_not_throttled(caplog):
+    limiter = _SyncRateLimiter(rate=3, window=60.0)
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
+        limiter.acquire()
+    assert caplog.text == ""
+
+
 # --- _AsyncRateLimiter ---
 
 async def test_async_limiter_rejects_invalid_rate():
@@ -75,6 +106,35 @@ async def test_async_sleeps_when_rate_exceeded(monkeypatch):
 
     assert len(slept) == 1
     assert slept[0] == pytest.approx(60.0)
+
+
+async def test_async_logs_info_when_throttled(monkeypatch, caplog):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+
+    async def mock_sleep(secs):
+        t[0] += secs
+
+    monkeypatch.setattr("race_monitor._rate_limiter.asyncio.sleep", mock_sleep)
+
+    limiter = _AsyncRateLimiter(rate=2, window=60.0)
+    await limiter.acquire()  # slot 1
+    await limiter.acquire()  # slot 2 — full
+
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
+        await limiter.acquire()  # throttled → should log
+
+    assert "Rate limited" in caplog.text
+    assert "2/2" in caplog.text
+    assert "60" in caplog.text
+    assert "sleeping" in caplog.text
+
+
+async def test_async_no_log_when_not_throttled(caplog):
+    limiter = _AsyncRateLimiter(rate=3, window=60.0)
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
+        await limiter.acquire()
+    assert caplog.text == ""
 
 
 # --- Registry ---

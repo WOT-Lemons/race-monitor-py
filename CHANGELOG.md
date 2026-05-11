@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.3.0...v0.4.0) (2026-05-11)
+
+
+### Features
+
+* Rate limit logging ([#15](https://github.com/WOT-Lemons/race-monitor-py/issues/15)) ([66c0d24](https://github.com/WOT-Lemons/race-monitor-py/commit/66c0d24d39733dab8f9d9ac37648d73d9fdb6945))
+
 ## [0.3.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.2.0...v0.3.0) (2026-05-10)
 
 

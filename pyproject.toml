@@ -1,6 +1,6 @@
 [project]
 name = "race-monitor"
-dynamic = ["version"]
+version = "0.4.0"
 description = "A Python library for Race Monitor"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,17 +31,9 @@ Source = "https://github.com/WOT-Lemons/race-monitor-py"
 "Bug Tracker" = "https://github.com/WOT-Lemons/race-monitor-py/issues"
 Changelog = "https://github.com/WOT-Lemons/race-monitor-py/blob/main/CHANGELOG.md"
 
-[tool.hatch.version]
-source = "regex"
-path = "VERSION"
-pattern = "^(?P<version>[^\n]+)$"
-
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/race_monitor"]
+requires = ["uv-build>=0.6.0,<0.12"]
+build-backend = "uv_build"
 
 [dependency-groups]
 dev = [

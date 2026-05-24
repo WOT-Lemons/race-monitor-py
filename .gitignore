@@ -219,6 +219,8 @@ __marimo__/
 
 # Claude
 docs/superpowers
+.claude/settings.local.json
+.claude/worktrees
 
 # Generated API docs
 docs/api/

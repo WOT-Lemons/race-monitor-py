@@ -1,5 +1,15 @@
 from typing import Callable
 
+from race_monitor.types import (
+    CompetitorDetailsResponse,
+    CompetitorsWithTransponderResponse,
+    GroupedSessionsForRaceResponse,
+    RacerResultsForRaceResponse,
+    ResultsRacesResponse,
+    SessionDetailsResponse,
+    SessionsResponse,
+)
+
 
 class ResultsNamespace:
     """Endpoints under /v2/Results."""
@@ -7,7 +17,7 @@ class ResultsNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    def competitor_details(self, competitor_id: int) -> dict:
+    def competitor_details(self, competitor_id: int) -> CompetitorDetailsResponse:
         """Get details for an individual competitor.
 
         Stability: Production.
@@ -17,7 +27,9 @@ class ResultsNamespace:
         """
         return self._post("/v2/Results/CompetitorDetails", competitorID=competitor_id)
 
-    def competitors_with_transponder(self, transponder: str) -> dict:
+    def competitors_with_transponder(
+        self, transponder: str
+    ) -> CompetitorsWithTransponderResponse:
         """Find competitors in results that have a given transponder value.
 
         Stability: Beta — subject to change without notice.
@@ -32,7 +44,7 @@ class ResultsNamespace:
         race_id: int | str,
         device_id: str = "",
         force_standard_behavior: bool = False,
-    ) -> dict:
+    ) -> GroupedSessionsForRaceResponse:
         """Get sessions grouped by category for a race.
 
         Only valid sessions or those manually marked 'Display In App' are returned.
@@ -61,7 +73,7 @@ class ResultsNamespace:
         last_name: str,
         only_results_with_finish_flag: bool = False,
         sort_descending: bool = False,
-    ) -> dict:
+    ) -> RacerResultsForRaceResponse:
         """Get competitor and session objects for a race and transponder.
 
         Stability: Production.
@@ -82,7 +94,7 @@ class ResultsNamespace:
             sortDescending=sort_descending,
         )
 
-    def races_with_transponder(self, transponder: str, last_name: str) -> dict:
+    def races_with_transponder(self, transponder: str, last_name: str) -> ResultsRacesResponse:
         """Get races containing sessions with competitors matching a transponder.
 
         Stability: Production.
@@ -97,7 +109,7 @@ class ResultsNamespace:
             lastName=last_name,
         )
 
-    def recent_results(self, app_section_id: int = 0, past_days: int = 0) -> dict:
+    def recent_results(self, app_section_id: int = 0, past_days: int = 0) -> ResultsRacesResponse:
         """Find recent races with results.
 
         Default look-back is 9 days (or the section-configured value).
@@ -115,7 +127,7 @@ class ResultsNamespace:
             pastDays=past_days,
         )
 
-    def search_results(self, search_term: str, app_section_id: int = 0) -> dict:
+    def search_results(self, search_term: str, app_section_id: int = 0) -> ResultsRacesResponse:
         """Search races with results by race name and track.
 
         Terms under 3 characters only match the start of the name/track.
@@ -132,7 +144,7 @@ class ResultsNamespace:
             appSectionID=app_section_id,
         )
 
-    def session_details(self, session_id: int, include_lap_times: bool = False) -> dict:
+    def session_details(self, session_id: int, include_lap_times: bool = False) -> SessionDetailsResponse:
         """Get results from a race session.
 
         Lap times are not included by default as they can produce very large
@@ -150,7 +162,7 @@ class ResultsNamespace:
             includeLapTimes=include_lap_times,
         )
 
-    def sessions_for_race(self, race_id: int | str, device_id: str = "") -> dict:
+    def sessions_for_race(self, race_id: int | str, device_id: str = "") -> SessionsResponse:
         """Get sessions for a race.
 
         Only valid sessions or those manually marked 'Display In App' are returned.
@@ -169,7 +181,7 @@ class ResultsNamespace:
 
     def sessions_in_date_range_for_race(
         self, race_id: int | str, start_date_epoc: int, end_date_epoc: int
-    ) -> dict:
+    ) -> SessionsResponse:
         """Get sessions within a date range for a race.
 
         Currently only works with Long Running Races. Non-Long Running Races
@@ -196,7 +208,7 @@ class AsyncResultsNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    async def competitor_details(self, competitor_id: int) -> dict:
+    async def competitor_details(self, competitor_id: int) -> CompetitorDetailsResponse:
         """Get details for an individual competitor.
 
         Stability: Production.
@@ -206,7 +218,9 @@ class AsyncResultsNamespace:
         """
         return await self._post("/v2/Results/CompetitorDetails", competitorID=competitor_id)
 
-    async def competitors_with_transponder(self, transponder: str) -> dict:
+    async def competitors_with_transponder(
+        self, transponder: str
+    ) -> CompetitorsWithTransponderResponse:
         """Find competitors in results that have a given transponder value.
 
         Stability: Beta — subject to change without notice.
@@ -221,7 +235,7 @@ class AsyncResultsNamespace:
         race_id: int | str,
         device_id: str = "",
         force_standard_behavior: bool = False,
-    ) -> dict:
+    ) -> GroupedSessionsForRaceResponse:
         """Get sessions grouped by category for a race.
 
         Only valid sessions or those manually marked 'Display In App' are returned.
@@ -250,7 +264,7 @@ class AsyncResultsNamespace:
         last_name: str,
         only_results_with_finish_flag: bool = False,
         sort_descending: bool = False,
-    ) -> dict:
+    ) -> RacerResultsForRaceResponse:
         """Get competitor and session objects for a race and transponder.
 
         Stability: Production.
@@ -271,7 +285,9 @@ class AsyncResultsNamespace:
             sortDescending=sort_descending,
         )
 
-    async def races_with_transponder(self, transponder: str, last_name: str) -> dict:
+    async def races_with_transponder(
+        self, transponder: str, last_name: str
+    ) -> ResultsRacesResponse:
         """Get races containing sessions with competitors matching a transponder.
 
         Stability: Production.
@@ -286,7 +302,9 @@ class AsyncResultsNamespace:
             lastName=last_name,
         )
 
-    async def recent_results(self, app_section_id: int = 0, past_days: int = 0) -> dict:
+    async def recent_results(
+        self, app_section_id: int = 0, past_days: int = 0
+    ) -> ResultsRacesResponse:
         """Find recent races with results.
 
         Default look-back is 9 days (or the section-configured value).
@@ -304,7 +322,9 @@ class AsyncResultsNamespace:
             pastDays=past_days,
         )
 
-    async def search_results(self, search_term: str, app_section_id: int = 0) -> dict:
+    async def search_results(
+        self, search_term: str, app_section_id: int = 0
+    ) -> ResultsRacesResponse:
         """Search races with results by race name and track.
 
         Terms under 3 characters only match the start of the name/track.
@@ -321,7 +341,9 @@ class AsyncResultsNamespace:
             appSectionID=app_section_id,
         )
 
-    async def session_details(self, session_id: int, include_lap_times: bool = False) -> dict:
+    async def session_details(
+        self, session_id: int, include_lap_times: bool = False
+    ) -> SessionDetailsResponse:
         """Get results from a race session.
 
         Lap times are not included by default as they can produce very large
@@ -339,7 +361,9 @@ class AsyncResultsNamespace:
             includeLapTimes=include_lap_times,
         )
 
-    async def sessions_for_race(self, race_id: int | str, device_id: str = "") -> dict:
+    async def sessions_for_race(
+        self, race_id: int | str, device_id: str = ""
+    ) -> SessionsResponse:
         """Get sessions for a race.
 
         Only valid sessions or those manually marked 'Display In App' are returned.
@@ -358,7 +382,7 @@ class AsyncResultsNamespace:
 
     async def sessions_in_date_range_for_race(
         self, race_id: int | str, start_date_epoc: int, end_date_epoc: int
-    ) -> dict:
+    ) -> SessionsResponse:
         """Get sessions within a date range for a race.
 
         Currently only works with Long Running Races. Non-Long Running Races

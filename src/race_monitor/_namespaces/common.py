@@ -1,5 +1,12 @@
 from typing import Callable
 
+from race_monitor.types import (
+    AppSectionsResponse,
+    CommonRacesResponse,
+    RaceTypesResponse,
+    TimeZonesResponse,
+)
+
 
 class CommonNamespace:
     """Endpoints under /v2/Common."""
@@ -7,14 +14,14 @@ class CommonNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    def app_sections(self) -> dict:
+    def app_sections(self) -> AppSectionsResponse:
         """Get app sections (e.g. Oval Racing, Road Racing, Karting).
 
         Stability: Production.
         """
         return self._post("/v2/Common/AppSections")
 
-    def current_races(self, series_id: int = 0) -> dict:
+    def current_races(self, series_id: int = 0) -> CommonRacesResponse:
         """Get all current races.
 
         Stability: Production.
@@ -26,7 +33,7 @@ class CommonNamespace:
 
     def past_races(
         self, series_id: int = 0, first_result: int = 0, max_results: int = 100
-    ) -> dict:
+    ) -> CommonRacesResponse:
         """Get past races.
 
         Stability: Beta — subject to change without notice.
@@ -43,21 +50,21 @@ class CommonNamespace:
             maxResults=max_results,
         )
 
-    def race_types(self) -> dict:
+    def race_types(self) -> RaceTypesResponse:
         """Get race types available in Race Monitor.
 
         Stability: Production.
         """
         return self._post("/v2/Common/RaceTypes")
 
-    def time_zones(self) -> dict:
+    def time_zones(self) -> TimeZonesResponse:
         """Get system time zones (as defined by .NET) used by races.
 
         Stability: Production.
         """
         return self._post("/v2/Common/TimeZones")
 
-    def upcoming_races(self, series_id: int = 0) -> dict:
+    def upcoming_races(self, series_id: int = 0) -> CommonRacesResponse:
         """Get all upcoming races.
 
         Stability: Production.
@@ -74,14 +81,14 @@ class AsyncCommonNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    async def app_sections(self) -> dict:
+    async def app_sections(self) -> AppSectionsResponse:
         """Get app sections (e.g. Oval Racing, Road Racing, Karting).
 
         Stability: Production.
         """
         return await self._post("/v2/Common/AppSections")
 
-    async def current_races(self, series_id: int = 0) -> dict:
+    async def current_races(self, series_id: int = 0) -> CommonRacesResponse:
         """Get all current races.
 
         Stability: Production.
@@ -93,7 +100,7 @@ class AsyncCommonNamespace:
 
     async def past_races(
         self, series_id: int = 0, first_result: int = 0, max_results: int = 100
-    ) -> dict:
+    ) -> CommonRacesResponse:
         """Get past races.
 
         Stability: Beta — subject to change without notice.
@@ -110,21 +117,21 @@ class AsyncCommonNamespace:
             maxResults=max_results,
         )
 
-    async def race_types(self) -> dict:
+    async def race_types(self) -> RaceTypesResponse:
         """Get race types available in Race Monitor.
 
         Stability: Production.
         """
         return await self._post("/v2/Common/RaceTypes")
 
-    async def time_zones(self) -> dict:
+    async def time_zones(self) -> TimeZonesResponse:
         """Get system time zones (as defined by .NET) used by races.
 
         Stability: Production.
         """
         return await self._post("/v2/Common/TimeZones")
 
-    async def upcoming_races(self, series_id: int = 0) -> dict:
+    async def upcoming_races(self, series_id: int = 0) -> CommonRacesResponse:
         """Get all upcoming races.
 
         Stability: Production.

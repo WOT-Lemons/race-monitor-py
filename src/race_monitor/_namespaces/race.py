@@ -1,5 +1,7 @@
 from typing import Callable
 
+from race_monitor.types import IsLiveResponse, RaceDetailsResponse
+
 
 class RaceNamespace:
     """Endpoints under /v2/Race."""
@@ -7,7 +9,7 @@ class RaceNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    def details(self, race_id: int | str) -> dict:
+    def details(self, race_id: int | str) -> RaceDetailsResponse:
         """Get information about a specific race.
 
         Stability: Production.
@@ -17,7 +19,7 @@ class RaceNamespace:
         """
         return self._post("/v2/Race/RaceDetails", raceID=race_id)
 
-    def is_live(self, race_id: int | str) -> dict:
+    def is_live(self, race_id: int | str) -> IsLiveResponse:
         """Check whether Race Monitor servers are receiving live data from this race.
 
         Live means live timing data has been received within the last two minutes.
@@ -36,7 +38,7 @@ class AsyncRaceNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    async def details(self, race_id: int | str) -> dict:
+    async def details(self, race_id: int | str) -> RaceDetailsResponse:
         """Get information about a specific race.
 
         Stability: Production.
@@ -46,7 +48,7 @@ class AsyncRaceNamespace:
         """
         return await self._post("/v2/Race/RaceDetails", raceID=race_id)
 
-    async def is_live(self, race_id: int | str) -> dict:
+    async def is_live(self, race_id: int | str) -> IsLiveResponse:
         """Check whether Race Monitor servers are receiving live data from this race.
 
         Live means live timing data has been received within the last two minutes.

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.5.0...v0.5.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* **deps:** address CVE-2026-45409 and harden uv lock CI ([e3d920f](https://github.com/WOT-Lemons/race-monitor-py/commit/e3d920f0dae2589b61f47eacfe0a88a603d4eef9))
+
 ## [0.5.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.4.0...v0.5.0) (2026-06-06)
 
 

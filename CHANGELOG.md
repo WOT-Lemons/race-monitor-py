@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.4.0...v0.5.0) (2026-06-06)
+
+
+### Features
+
+* **types:** add TypedDict response types for all endpoints ([7f89741](https://github.com/WOT-Lemons/race-monitor-py/commit/7f89741dddffd82da0c089788fce6228adc5cc5b))
+
+
+### Bug Fixes
+
+* **docs:** expose types submodule so pdoc generates race_monitor/types page ([2984270](https://github.com/WOT-Lemons/race-monitor-py/commit/2984270297e2c039fedfc16d3ea581b1f257c119))
+
 ## [0.4.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.3.0...v0.4.0) (2026-05-11)
 
 

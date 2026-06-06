@@ -1,13 +1,6 @@
 name: Lock File Check
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.github/workflows/uv-lock-check.yml'
   pull_request:
     branches:
       - main

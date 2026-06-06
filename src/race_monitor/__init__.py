@@ -26,10 +26,12 @@ Response types are available in :mod:`race_monitor.types` for use in type annota
 from .client import RaceMonitorClient
 from .async_client import AsyncRaceMonitorClient
 from ._core import RaceMonitorError, RaceMonitorHTTPError
+from . import types
 
 __all__ = [
     "RaceMonitorClient",
     "AsyncRaceMonitorClient",
     "RaceMonitorError",
     "RaceMonitorHTTPError",
+    "types",
 ]

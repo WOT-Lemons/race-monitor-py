@@ -25,4 +25,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add uv.lock
-          git diff --staged --quiet || git commit -m "chore: sync uv.lock" && git push
+          git diff --staged --quiet && exit 0
+          git commit -m "chore: sync uv.lock"
+          git push

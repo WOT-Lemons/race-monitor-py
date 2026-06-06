@@ -1,14 +1,16 @@
-name: Python Syntax Check
+name: Lock File Check
 
 on:
   pull_request:
     branches:
       - main
     paths:
-      - '**.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/uv-lock-check.yml'
 
 jobs:
-  syntax:
+  lock-check:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -17,5 +19,5 @@ jobs:
         with:
           uv-version: "0.11.19"
 
-      - name: Check syntax and style
-        run: uv run --with flake8 flake8 .
+      - name: Verify lock file is up to date
+        run: uv lock --check

@@ -144,7 +144,9 @@ class ResultsNamespace:
             appSectionID=app_section_id,
         )
 
-    def session_details(self, session_id: int, include_lap_times: bool = False) -> SessionDetailsResponse:
+    def session_details(
+        self, session_id: int, include_lap_times: bool = False
+    ) -> SessionDetailsResponse:
         """Get results from a race session.
 
         Lap times are not included by default as they can produce very large

@@ -457,7 +457,10 @@ class RacerResultsForRaceResponse(TypedDict):
 
 
 class ResultsRacesResponse(TypedDict):
-    """Response from Results race-listing endpoints (races_with_transponder, recent_results, search_results)."""
+    """Response from Results race-listing endpoints.
+
+    Covers ``races_with_transponder``, ``recent_results``, and ``search_results``.
+    """
 
     Successful: bool
     Races: list[ResultsRace]
@@ -471,7 +474,7 @@ class SessionDetailsResponse(TypedDict):
 
 
 class SessionsResponse(TypedDict):
-    """Response from ``results.sessions_for_race`` and ``results.sessions_in_date_range_for_race``."""
+    """Response from ``results.sessions_for_race`` and ``sessions_in_date_range_for_race``."""
 
     Successful: bool
     Sessions: list[Session]

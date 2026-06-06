@@ -70,10 +70,12 @@ All methods return typed dicts from `race_monitor.types`, enabling IDE autocompl
 and static type checking:
 
 ```python
+from race_monitor import RaceMonitorClient
 from race_monitor.types import GetSessionResponse, LiveCompetitor
 
-session: GetSessionResponse = client.live.get_session(race_id=12345)
-competitor: LiveCompetitor = session["Session"]["Competitors"]["42"]
+with RaceMonitorClient(api_token="YOUR_TOKEN") as client:
+    session: GetSessionResponse = client.live.get_session(race_id=12345)
+    competitor: LiveCompetitor = session["Session"]["Competitors"]["42"]
 ```
 
 ## Documentation

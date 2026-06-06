@@ -28,14 +28,14 @@ uv add race-monitor
 ```python
 from race_monitor import RaceMonitorClient
 
-# All methods return parsed JSON as Python dicts.
 with RaceMonitorClient(api_token="YOUR_TOKEN") as client:
     race = client.race.details(race_id=12345)
     print(race["Race"]["Name"])
 
     if client.race.is_live(race_id=12345)["IsLive"]:
         session = client.live.get_session(race_id=12345)
-        # work with session data — see API docs for field names
+        for racer_id, competitor in session["Session"]["Competitors"].items():
+            print(competitor["Position"], competitor["FirstName"], competitor["LastName"])
 ```
 
 ### Async
@@ -63,6 +63,20 @@ All endpoints are grouped into namespaces, accessible as `client.<namespace>`:
 | `live` | Real-time timing data: session, competitors, lap times |
 | `race` | Race details and live status |
 | `results` | Post-race results and competitor details |
+
+## Type Annotations
+
+All methods return typed dicts from `race_monitor.types`, enabling IDE autocompletion
+and static type checking:
+
+```python
+from race_monitor import RaceMonitorClient
+from race_monitor.types import GetSessionResponse, LiveCompetitor
+
+with RaceMonitorClient(api_token="YOUR_TOKEN") as client:
+    session: GetSessionResponse = client.live.get_session(race_id=12345)
+    competitor: LiveCompetitor = session["Session"]["Competitors"]["42"]
+```
 
 ## Documentation
 

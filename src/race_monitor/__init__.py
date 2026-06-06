@@ -17,6 +17,10 @@ Async usage::
 
     async with AsyncRaceMonitorClient(api_token="YOUR_TOKEN") as client:
         race = await client.race.details(race_id=12345)
+
+Response types are available in :mod:`race_monitor.types` for use in type annotations::
+
+    from race_monitor.types import RaceDetailsResponse, Race
 """
 
 from .client import RaceMonitorClient

@@ -1,5 +1,7 @@
 from typing import Callable
 
+from race_monitor.types import AccountRacesResponse, AccountSeriesResponse
+
 
 class AccountNamespace:
     """Endpoints under /v2/Account. All Production stability."""
@@ -7,7 +9,7 @@ class AccountNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    def all_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    def all_races(self, series_id: int = 0, race_type_id: int = 0) -> AccountRacesResponse:
         """Get all races associated with your relaying account.
 
         Args:
@@ -16,7 +18,7 @@ class AccountNamespace:
         """
         return self._post("/v2/Account/AllRaces", seriesID=series_id, raceTypeID=race_type_id)
 
-    def current_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    def current_races(self, series_id: int = 0, race_type_id: int = 0) -> AccountRacesResponse:
         """Get current races associated with your relaying account.
 
         Args:
@@ -25,7 +27,7 @@ class AccountNamespace:
         """
         return self._post("/v2/Account/CurrentRaces", seriesID=series_id, raceTypeID=race_type_id)
 
-    def past_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    def past_races(self, series_id: int = 0, race_type_id: int = 0) -> AccountRacesResponse:
         """Get past races associated with your relaying account.
 
         Args:
@@ -34,11 +36,11 @@ class AccountNamespace:
         """
         return self._post("/v2/Account/PastRaces", seriesID=series_id, raceTypeID=race_type_id)
 
-    def series(self) -> dict:
+    def series(self) -> AccountSeriesResponse:
         """Get series that your account has permission for."""
         return self._post("/v2/Account/Series")
 
-    def upcoming_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    def upcoming_races(self, series_id: int = 0, race_type_id: int = 0) -> AccountRacesResponse:
         """Get upcoming races associated with your relaying account.
 
         Args:
@@ -54,7 +56,7 @@ class AsyncAccountNamespace:
     def __init__(self, post: Callable) -> None:
         self._post = post
 
-    async def all_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    async def all_races(self, series_id: int = 0, race_type_id: int = 0) -> AccountRacesResponse:
         """Get all races associated with your relaying account.
 
         Args:
@@ -63,7 +65,9 @@ class AsyncAccountNamespace:
         """
         return await self._post("/v2/Account/AllRaces", seriesID=series_id, raceTypeID=race_type_id)
 
-    async def current_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    async def current_races(
+        self, series_id: int = 0, race_type_id: int = 0
+    ) -> AccountRacesResponse:
         """Get current races associated with your relaying account.
 
         Args:
@@ -74,7 +78,7 @@ class AsyncAccountNamespace:
             "/v2/Account/CurrentRaces", seriesID=series_id, raceTypeID=race_type_id
         )
 
-    async def past_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    async def past_races(self, series_id: int = 0, race_type_id: int = 0) -> AccountRacesResponse:
         """Get past races associated with your relaying account.
 
         Args:
@@ -85,11 +89,13 @@ class AsyncAccountNamespace:
             "/v2/Account/PastRaces", seriesID=series_id, raceTypeID=race_type_id
         )
 
-    async def series(self) -> dict:
+    async def series(self) -> AccountSeriesResponse:
         """Get series that your account has permission for."""
         return await self._post("/v2/Account/Series")
 
-    async def upcoming_races(self, series_id: int = 0, race_type_id: int = 0) -> dict:
+    async def upcoming_races(
+        self, series_id: int = 0, race_type_id: int = 0
+    ) -> AccountRacesResponse:
         """Get upcoming races associated with your relaying account.
 
         Args:

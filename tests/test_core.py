@@ -1,5 +1,6 @@
 import httpx
 import pytest
+
 from race_monitor._core import BASE_URL, RaceMonitorError, RaceMonitorHTTPError, _parse_response
 
 

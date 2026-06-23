@@ -1,4 +1,7 @@
+"""Synchronous Race Monitor API client."""
+
 import time
+from typing import Any
 
 import httpx
 
@@ -37,6 +40,7 @@ class RaceMonitorClient:
         requests_per_minute: int = 6,
         **kwargs,
     ) -> None:
+        """Initialize the client. See class docstring for parameter details."""
         self._token = api_token
         self._retry_delay = retry_delay
         self._limiter = get_sync_limiter(api_token, requests_per_minute, 60.0)
@@ -48,13 +52,16 @@ class RaceMonitorClient:
         self.results = ResultsNamespace(self._post)
 
     def __enter__(self) -> "RaceMonitorClient":
+        """Enter the context manager."""
         self._http.__enter__()
         return self
 
     def __exit__(self, *args):
+        """Exit the context manager."""
         return self._http.__exit__(*args)
 
-    def _post(self, path: str, **kwargs) -> dict:
+    def _post(self, path: str, **kwargs) -> dict[str, Any]:
+        """POST to the API, acquiring a rate-limit token and retrying on 429."""
         data = {"apiToken": self._token, **kwargs}
         while True:
             self._limiter.acquire()
@@ -64,5 +71,6 @@ class RaceMonitorClient:
                 continue
             return _parse_response(response)
 
-    def post(self, path: str, **kwargs) -> dict:
+    def post(self, path: str, **kwargs) -> dict[str, Any]:
+        """Make a POST request to the given API path."""
         return self._post(path, **kwargs)

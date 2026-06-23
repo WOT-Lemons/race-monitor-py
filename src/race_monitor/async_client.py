@@ -60,6 +60,7 @@ class AsyncRaceMonitorClient:
         return await self._http.__aexit__(*args)
 
     async def _post(self, path: str, **kwargs) -> dict:
+        """POST to the API, acquiring a rate-limit token and retrying on 429."""
         data = {"apiToken": self._token, **kwargs}
         while True:
             await self._limiter.acquire()

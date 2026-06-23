@@ -60,6 +60,7 @@ class RaceMonitorClient:
         return self._http.__exit__(*args)
 
     def _post(self, path: str, **kwargs) -> dict:
+        """POST to the API, acquiring a rate-limit token and retrying on 429."""
         data = {"apiToken": self._token, **kwargs}
         while True:
             self._limiter.acquire()

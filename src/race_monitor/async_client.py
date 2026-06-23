@@ -1,3 +1,5 @@
+"""Asynchronous Race Monitor API client."""
+
 import asyncio
 
 import httpx
@@ -37,6 +39,7 @@ class AsyncRaceMonitorClient:
         requests_per_minute: int = 6,
         **kwargs,
     ) -> None:
+        """Initialize the client. See class docstring for parameter details."""
         self._token = api_token
         self._retry_delay = retry_delay
         self._limiter = get_async_limiter(api_token, requests_per_minute, 60.0)
@@ -48,10 +51,12 @@ class AsyncRaceMonitorClient:
         self.results = AsyncResultsNamespace(self._post)
 
     async def __aenter__(self) -> "AsyncRaceMonitorClient":
+        """Enter the async context manager."""
         await self._http.__aenter__()
         return self
 
     async def __aexit__(self, *args):
+        """Exit the async context manager."""
         return await self._http.__aexit__(*args)
 
     async def _post(self, path: str, **kwargs) -> dict:
@@ -65,4 +70,5 @@ class AsyncRaceMonitorClient:
             return _parse_response(response)
 
     async def post(self, path: str, **kwargs) -> dict:
+        """Make a POST request to the given API path."""
         return await self._post(path, **kwargs)

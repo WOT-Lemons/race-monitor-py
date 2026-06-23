@@ -1,4 +1,5 @@
 import pytest
+
 from race_monitor import RaceMonitorError, RaceMonitorHTTPError
 
 SUCCESS = {"Successful": True, "Value": 42}

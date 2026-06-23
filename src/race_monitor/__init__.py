@@ -23,14 +23,14 @@ Response types are available in :mod:`race_monitor.types` for use in type annota
     from race_monitor.types import RaceDetailsResponse, Race
 """
 
-from .client import RaceMonitorClient
-from .async_client import AsyncRaceMonitorClient
-from ._core import RaceMonitorError, RaceMonitorHTTPError
 from . import types
+from ._core import RaceMonitorError, RaceMonitorHTTPError
+from .async_client import AsyncRaceMonitorClient
+from .client import RaceMonitorClient
 
 __all__ = [
-    "RaceMonitorClient",
     "AsyncRaceMonitorClient",
+    "RaceMonitorClient",
     "RaceMonitorError",
     "RaceMonitorHTTPError",
     "types",

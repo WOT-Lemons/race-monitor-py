@@ -1,6 +1,7 @@
 """Synchronous Race Monitor API client."""
 
 import time
+from typing import Any
 
 import httpx
 
@@ -59,7 +60,7 @@ class RaceMonitorClient:
         """Exit the context manager."""
         return self._http.__exit__(*args)
 
-    def _post(self, path: str, **kwargs) -> dict:
+    def _post(self, path: str, **kwargs) -> dict[str, Any]:
         """POST to the API, acquiring a rate-limit token and retrying on 429."""
         data = {"apiToken": self._token, **kwargs}
         while True:
@@ -70,6 +71,6 @@ class RaceMonitorClient:
                 continue
             return _parse_response(response)
 
-    def post(self, path: str, **kwargs) -> dict:
+    def post(self, path: str, **kwargs) -> dict[str, Any]:
         """Make a POST request to the given API path."""
         return self._post(path, **kwargs)

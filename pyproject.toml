@@ -57,7 +57,7 @@ select = ["E", "F", "W", "D1", "I", "B", "UP", "RUF", "N", "C4", "SIM"]
 ignore = ["D107"]
 
 [tool.ruff.lint.pydocstyle]
-convention = "google"
+convention = "google"  # implicitly overrides some D1xx rules that conflict with Google style
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D1"]

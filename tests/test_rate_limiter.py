@@ -1,13 +1,13 @@
 import logging
 
 import pytest
+
 from race_monitor._rate_limiter import (
     _AsyncRateLimiter,
     _SyncRateLimiter,
     get_async_limiter,
     get_sync_limiter,
 )
-
 
 # --- _SyncRateLimiter ---
 

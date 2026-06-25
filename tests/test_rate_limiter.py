@@ -73,6 +73,48 @@ def test_sync_no_log_when_not_throttled(caplog):
     assert caplog.text == ""
 
 
+def test_sync_capacity_empty():
+    limiter = _SyncRateLimiter(rate=3, window=60.0)
+    assert limiter.capacity() == 3
+
+
+def test_sync_capacity_after_acquires():
+    limiter = _SyncRateLimiter(rate=3, window=60.0)
+    limiter.acquire()
+    limiter.acquire()
+    assert limiter.capacity() == 1
+
+
+def test_sync_capacity_zero_when_full():
+    limiter = _SyncRateLimiter(rate=2, window=60.0)
+    limiter.acquire()
+    limiter.acquire()
+    assert limiter.capacity() == 0
+
+
+def test_sync_label_in_log_message(monkeypatch, caplog):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+
+    def mock_sleep(secs):
+        t[0] += secs
+
+    monkeypatch.setattr("race_monitor._rate_limiter.time.sleep", mock_sleep)
+
+    limiter = _SyncRateLimiter(rate=1, window=60.0, label="abcd")
+    limiter.acquire()
+
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
+        limiter.acquire()
+
+    assert "...abcd" in caplog.text
+
+
+def test_get_sync_limiter_sets_label():
+    limiter = get_sync_limiter("label-test-sync-abcd", 6, 60.0)
+    assert limiter._label == "abcd"
+
+
 # --- _AsyncRateLimiter ---
 
 async def test_async_limiter_rejects_invalid_rate():
@@ -135,6 +177,41 @@ async def test_async_no_log_when_not_throttled(caplog):
     with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
         await limiter.acquire()
     assert caplog.text == ""
+
+
+async def test_async_capacity_empty():
+    limiter = _AsyncRateLimiter(rate=3, window=60.0)
+    assert limiter.capacity() == 3
+
+
+async def test_async_capacity_after_acquires():
+    limiter = _AsyncRateLimiter(rate=3, window=60.0)
+    await limiter.acquire()
+    await limiter.acquire()
+    assert limiter.capacity() == 1
+
+
+async def test_async_label_in_log_message(monkeypatch, caplog):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+
+    async def mock_sleep(secs):
+        t[0] += secs
+
+    monkeypatch.setattr("race_monitor._rate_limiter.asyncio.sleep", mock_sleep)
+
+    limiter = _AsyncRateLimiter(rate=1, window=60.0, label="efgh")
+    await limiter.acquire()
+
+    with caplog.at_level(logging.INFO, logger="race_monitor._rate_limiter"):
+        await limiter.acquire()
+
+    assert "...efgh" in caplog.text
+
+
+def test_get_async_limiter_sets_label():
+    limiter = get_async_limiter("label-test-async-efgh", 6, 60.0)
+    assert limiter._label == "efgh"
 
 
 # --- Registry ---

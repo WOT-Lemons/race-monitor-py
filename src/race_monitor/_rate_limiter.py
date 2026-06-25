@@ -11,13 +11,20 @@ _registry_lock = threading.Lock()
 
 
 class _SyncRateLimiter:
-    def __init__(self, rate: int, window: float = 60.0) -> None:
+    def __init__(self, rate: int, window: float = 60.0, label: str = "") -> None:
         if rate < 1:
             raise ValueError(f"rate must be >= 1, got {rate}")
         self._rate = rate
         self._window = window
+        self._label = label
         self._timestamps: deque[float] = deque()
         self._lock = threading.Lock()
+
+    def capacity(self) -> int:
+        with self._lock:
+            now = time.monotonic()
+            in_window = sum(1 for ts in self._timestamps if ts > now - self._window)
+            return self._rate - in_window
 
     def acquire(self) -> None:
         while True:
@@ -32,21 +39,26 @@ class _SyncRateLimiter:
                 slots_used = len(self._timestamps)
                 oldest_age = now - self._timestamps[0]
             _logger.info(
-                "Rate limited: sleeping %.2fs "
+                "Rate limited on ...%s: sleeping %.2fs "
                 "[%d/%d slots used over %.0fs window; oldest request %.2fs ago]",
-                max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
+                self._label, max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
             )
             time.sleep(max(0.0, wait))
 
 
 class _AsyncRateLimiter:
-    def __init__(self, rate: int, window: float = 60.0) -> None:
+    def __init__(self, rate: int, window: float = 60.0, label: str = "") -> None:
         if rate < 1:
             raise ValueError(f"rate must be >= 1, got {rate}")
         self._rate = rate
         self._window = window
+        self._label = label
         self._timestamps: deque[float] = deque()
         self._lock = asyncio.Lock()
+
+    def capacity(self) -> int:
+        now = time.monotonic()
+        return self._rate - sum(1 for ts in self._timestamps if ts > now - self._window)
 
     async def acquire(self) -> None:
         while True:
@@ -61,9 +73,9 @@ class _AsyncRateLimiter:
                 slots_used = len(self._timestamps)
                 oldest_age = now - self._timestamps[0]
             _logger.info(
-                "Rate limited: sleeping %.2fs "
+                "Rate limited on ...%s: sleeping %.2fs "
                 "[%d/%d slots used over %.0fs window; oldest request %.2fs ago]",
-                max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
+                self._label, max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
             )
             await asyncio.sleep(max(0.0, wait))
 
@@ -77,7 +89,7 @@ def get_sync_limiter(token: str, rate: int, window: float) -> _SyncRateLimiter:
     with _registry_lock:
         limiter = _sync_limiters.get(token)
         if limiter is None:
-            limiter = _SyncRateLimiter(rate, window)
+            limiter = _SyncRateLimiter(rate, window, label=token[-4:])
             _sync_limiters[token] = limiter
         elif limiter._rate != rate or limiter._window != window:
             raise ValueError(
@@ -96,7 +108,7 @@ def get_async_limiter(token: str, rate: int, window: float) -> _AsyncRateLimiter
     with _registry_lock:
         limiter = _async_limiters.get(token)
         if limiter is None:
-            limiter = _AsyncRateLimiter(rate, window)
+            limiter = _AsyncRateLimiter(rate, window, label=token[-4:])
             _async_limiters[token] = limiter
         elif limiter._rate != rate or limiter._window != window:
             raise ValueError(

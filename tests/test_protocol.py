@@ -94,9 +94,9 @@ class TestStreamingCommandDataclass:
 
 
 class TestGetAllStreamingCommands:
-    def test_returns_all_15_commands(self):
+    def test_returns_all_commands(self):
         result = _mod.get_all_streaming_commands()
-        assert len(result) == 15
+        assert len(result) == len(_mod._COMMAND_INFO)
 
     def test_values_are_streaming_commands(self):
         result = _mod.get_all_streaming_commands()
@@ -140,5 +140,5 @@ class TestPublicExports:
     def test_get_all_streaming_commands_importable_from_package(self):
         from race_monitor import get_all_streaming_commands
         result = get_all_streaming_commands()
-        assert len(result) == 15
+        assert len(result) == len(_mod._COMMAND_INFO)
         assert all(k == v.token for k, v in result.items())

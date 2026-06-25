@@ -105,6 +105,14 @@ _COMMAND_INFO: _types.MappingProxyType[str, StreamingCommand] = _types.MappingPr
     ),
 })
 
+for _key, _cmd in _COMMAND_INFO.items():
+    assert _cmd.token == f"${_key}", (
+        f"_COMMAND_INFO key {_key!r} must equal cmd.token[1:], got {_cmd.token!r}"
+    )
+del _key, _cmd
+
+_ALL_COMMANDS: dict[str, StreamingCommand] = {v.token: v for v in _COMMAND_INFO.values()}
+
 
 def is_streaming_command(value: object) -> bool:
     """Return True if *value* is a Race Monitor streaming protocol command token.
@@ -135,4 +143,4 @@ def get_streaming_command(value: object) -> StreamingCommand | None:
 
 def get_all_streaming_commands() -> dict[str, StreamingCommand]:
     """Return a copy of all known streaming commands keyed by their token (e.g. ``'$J'``)."""
-    return {v.token: v for v in _COMMAND_INFO.values()}
+    return dict(_ALL_COMMANDS)

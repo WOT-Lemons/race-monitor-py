@@ -57,6 +57,7 @@ class AsyncMockTransport(httpx.AsyncBaseTransport):
 @pytest.fixture(autouse=True)
 def _reset_rate_limiters():
     from race_monitor._rate_limiter import _async_limiters, _sync_limiters
+
     _sync_limiters.clear()
     _async_limiters.clear()
     yield

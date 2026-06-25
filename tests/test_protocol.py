@@ -26,12 +26,6 @@ class TestIsStreamingCommand:
     def test_returns_false_for_non_commands(self, value):
         assert _mod.is_streaming_command(value) is False
 
-    def test_does_not_raise_for_none(self):
-        assert _mod.is_streaming_command(None) is False
-
-    def test_does_not_raise_for_integer(self):
-        assert _mod.is_streaming_command(42) is False
-
 
 class TestGetStreamingCommand:
     def test_returns_streaming_command_for_known_token(self):
@@ -58,6 +52,7 @@ class TestGetStreamingCommand:
     def test_all_known_commands_return_streaming_command(self, token):
         result = _mod.get_streaming_command(token)
         assert isinstance(result, StreamingCommand)
+        assert result.token == token
         assert result.name
         assert result.description
         assert result.when
@@ -84,9 +79,47 @@ class TestStreamingCommandDataclass:
 
     def test_fields_are_accessible(self):
         cmd = _mod.get_streaming_command("$A")
+        assert hasattr(cmd, "token")
         assert hasattr(cmd, "name")
         assert hasattr(cmd, "description")
         assert hasattr(cmd, "when")
+
+    def test_token_matches_lookup_key(self):
+        cmd = _mod.get_streaming_command("$J")
+        assert cmd.token == "$J"
+
+    def test_token_field_on_construction(self):
+        cmd = StreamingCommand(token="$X", name="Test", description="desc", when="always")
+        assert cmd.token == "$X"
+
+
+class TestGetAllStreamingCommands:
+    def test_returns_all_15_commands(self):
+        result = _mod.get_all_streaming_commands()
+        assert len(result) == 15
+
+    def test_values_are_streaming_commands(self):
+        result = _mod.get_all_streaming_commands()
+        assert all(isinstance(v, StreamingCommand) for v in result.values())
+
+    def test_keys_are_dollar_prefixed_tokens(self):
+        result = _mod.get_all_streaming_commands()
+        assert all(k.startswith("$") for k in result)
+
+    def test_known_token_present(self):
+        result = _mod.get_all_streaming_commands()
+        assert "$J" in result
+        assert result["$J"].name == "Passing Information"
+
+    def test_keys_match_token_field(self):
+        result = _mod.get_all_streaming_commands()
+        assert all(k == v.token for k, v in result.items())
+
+    def test_returns_independent_copy(self):
+        result1 = _mod.get_all_streaming_commands()
+        result1["$FAKE"] = None  # type: ignore[assignment]
+        result2 = _mod.get_all_streaming_commands()
+        assert "$FAKE" not in result2
 
 
 class TestPublicExports:
@@ -102,4 +135,10 @@ class TestPublicExports:
 
     def test_streaming_command_importable_from_package(self):
         from race_monitor import StreamingCommand
-        assert StreamingCommand("a", "b", "c").name == "a"
+        assert StreamingCommand(token="$X", name="a", description="b", when="c").name == "a"
+
+    def test_get_all_streaming_commands_importable_from_package(self):
+        from race_monitor import get_all_streaming_commands
+        result = get_all_streaming_commands()
+        assert len(result) == 15
+        assert all(k == v.token for k, v in result.items())

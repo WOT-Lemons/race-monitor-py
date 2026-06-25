@@ -25,7 +25,12 @@ Response types are available in :mod:`race_monitor.types` for use in type annota
 
 from . import types
 from ._core import RaceMonitorError, RaceMonitorHTTPError
-from ._protocol import StreamingCommand, get_streaming_command, is_streaming_command
+from ._protocol import (
+    StreamingCommand,
+    get_all_streaming_commands,
+    get_streaming_command,
+    is_streaming_command,
+)
 from .async_client import AsyncRaceMonitorClient
 from .client import RaceMonitorClient
 
@@ -35,6 +40,7 @@ __all__ = [
     "RaceMonitorError",
     "RaceMonitorHTTPError",
     "StreamingCommand",
+    "get_all_streaming_commands",
     "get_streaming_command",
     "is_streaming_command",
     "types",

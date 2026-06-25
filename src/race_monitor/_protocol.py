@@ -1,3 +1,4 @@
+import types as _types
 from dataclasses import dataclass
 
 
@@ -5,88 +6,104 @@ from dataclasses import dataclass
 class StreamingCommand:
     """Metadata for a Race Monitor live streaming protocol command."""
 
+    token: str
     name: str
     description: str
     when: str
 
 
-_COMMAND_INFO: dict[str, StreamingCommand] = {
+_COMMAND_INFO: _types.MappingProxyType[str, StreamingCommand] = _types.MappingProxyType({
     "A": StreamingCommand(
-        "Competitor Information",
-        "Racer ID, number, transponder, name, nationality, class",
-        "On connect, info change, or reset",
+        token="$A",
+        name="Competitor Information",
+        description="Racer ID, number, transponder, name, nationality, class",
+        when="On connect, info change, or reset",
     ),
     "B": StreamingCommand(
-        "Run Information",
-        "Run ID and session name",
-        "On connect, session name change, or reset",
+        token="$B",
+        name="Run Information",
+        description="Run ID and session name",
+        when="On connect, session name change, or reset",
     ),
     "C": StreamingCommand(
-        "Class Information",
-        "Class ID and description",
-        "On connect, class description change, or reset",
+        token="$C",
+        name="Class Information",
+        description="Class ID and description",
+        when="On connect, class description change, or reset",
     ),
     "COMP": StreamingCommand(
-        "Competitor Information (extended)",
-        "Racer ID, number, class, name, nationality, additional data",
-        "On connect, info change, or reset",
+        token="$COMP",
+        name="Competitor Information (extended)",
+        description="Racer ID, number, class, name, nationality, additional data",
+        when="On connect, info change, or reset",
     ),
     "E": StreamingCommand(
-        "Setting Information",
-        "Track name or track length setting",
-        "On setting update or reset",
+        token="$E",
+        name="Setting Information",
+        description="Track name or track length setting",
+        when="On setting update or reset",
     ),
     "F": StreamingCommand(
-        "Heartbeat",
-        "Laps to go, time to go, time of day, race time, flag status",
-        "Every second",
+        token="$F",
+        name="Heartbeat",
+        description="Laps to go, time to go, time of day, race time, flag status",
+        when="Every second",
     ),
     "G": StreamingCommand(
-        "Race Information",
-        "Race position, racer ID, laps completed, total time",
-        "On connect, race info change, or reset",
+        token="$G",
+        name="Race Information",
+        description="Race position, racer ID, laps completed, total time",
+        when="On connect, race info change, or reset",
     ),
     "H": StreamingCommand(
-        "Qualifying Information",
-        "Qualifying position, racer ID, best lap number and time",
-        "On connect, qualifying info update, or reset",
+        token="$H",
+        name="Qualifying Information",
+        description="Qualifying position, racer ID, best lap number and time",
+        when="On connect, qualifying info update, or reset",
     ),
     "I": StreamingCommand(
-        "Reset Command",
-        "Time of day and date from timing system",
-        "On run group change or manual reset",
+        token="$I",
+        name="Reset Command",
+        description="Time of day and date from timing system",
+        when="On run group change or manual reset",
     ),
     "J": StreamingCommand(
-        "Passing Information",
-        "Racer ID, lap time, total time",
-        "On connect and each timing loop crossing; not sent on reset",
+        token="$J",
+        name="Passing Information",
+        description="Racer ID, lap time, total time",
+        when="On connect and each timing loop crossing; not sent on reset",
     ),
     "RMS": StreamingCommand(
-        "Sort Mode",
-        "Sort order: 'race' or 'qualifying'",
-        "On connect and sort mode change",
+        token="$RMS",
+        name="Sort Mode",
+        description="Sort order: 'race' or 'qualifying'",
+        when="On connect and sort mode change",
     ),
     "RMLT": StreamingCommand(
-        "Lap Ticks",
-        "Racer ID and epoch-ms timestamp of last passing",
-        "On connect and each passing ($J)",
+        token="$RMLT",
+        name="Lap Ticks",
+        description="Racer ID and epoch-ms timestamp of last passing",
+        when="On connect and each passing ($J)",
     ),
     "RMDTL": StreamingCommand(
-        "Don't Track Locally",
-        "Signals that historical laps can be fetched from the server",
-        "On connect",
+        token="$RMDTL",
+        name="Don't Track Locally",
+        description="Signals that historical laps can be fetched from the server",
+        when="On connect",
     ),
     "RMCA": StreamingCommand(
-        "Clock Adjust",
-        "Relay server epoch-ms time for correlating $RMLT timestamps",
-        "On connect",
+        token="$RMCA",
+        name="Clock Adjust",
+        description="Relay server epoch-ms time for correlating $RMLT timestamps",
+        when="On connect",
     ),
     "RMHL": StreamingCommand(
-        "Historical Lap",
-        "Racer ID, lap number, position, lap time, flag status, total time",
-        "On new lap entry or $GET,RACERID request",
+        token="$RMHL",
+        name="Historical Lap",
+        description="Racer ID, lap number, position, lap time, flag status, total time",
+        when="On new lap entry or $GET,RACERID request",
     ),
-}
+})
 
 
 def is_streaming_command(value: object) -> bool:
@@ -114,3 +131,8 @@ def get_streaming_command(value: object) -> StreamingCommand | None:
     if not isinstance(value, str) or not value.startswith("$"):
         return None
     return _COMMAND_INFO.get(value[1:])
+
+
+def get_all_streaming_commands() -> dict[str, StreamingCommand]:
+    """Return a copy of all known streaming commands keyed by their token (e.g. ``'$J'``)."""
+    return {v.token: v for v in _COMMAND_INFO.values()}

@@ -116,3 +116,51 @@ def get_async_limiter(token: str, rate: int, window: float) -> _AsyncRateLimiter
                 f"window={limiter._window}; got rate={rate}, window={window}"
             )
         return limiter
+
+
+class _NoOpSyncLimiter:
+    def capacity(self) -> int:
+        return 10**9
+
+    def acquire(self) -> None:
+        pass
+
+
+class _NoOpAsyncLimiter:
+    def capacity(self) -> int:
+        return 10**9
+
+    async def acquire(self) -> None:
+        pass
+
+
+class _TokenPool:
+    def __init__(self, entries: list[tuple[str, _SyncRateLimiter | _NoOpSyncLimiter]]) -> None:
+        self._entries = entries
+
+    def select(self) -> tuple[str, _SyncRateLimiter | _NoOpSyncLimiter]:
+        return max(self._entries, key=lambda e: e[1].capacity())
+
+
+class _AsyncTokenPool:
+    def __init__(self, entries: list[tuple[str, _AsyncRateLimiter | _NoOpAsyncLimiter]]) -> None:
+        self._entries = entries
+
+    def select(self) -> tuple[str, _AsyncRateLimiter | _NoOpAsyncLimiter]:
+        return max(self._entries, key=lambda e: e[1].capacity())
+
+
+def get_sync_pool(token_rates: dict[str, int | None], window: float) -> _TokenPool:
+    entries = []
+    for t, r in token_rates.items():
+        limiter = _NoOpSyncLimiter() if r is None else get_sync_limiter(t, r, window)
+        entries.append((t, limiter))
+    return _TokenPool(entries)
+
+
+def get_async_pool(token_rates: dict[str, int | None], window: float) -> _AsyncTokenPool:
+    entries = []
+    for t, r in token_rates.items():
+        limiter = _NoOpAsyncLimiter() if r is None else get_async_limiter(t, r, window)
+        entries.append((t, limiter))
+    return _AsyncTokenPool(entries)

@@ -4,9 +4,15 @@ import pytest
 
 from race_monitor._rate_limiter import (
     _AsyncRateLimiter,
+    _AsyncTokenPool,
+    _NoOpAsyncLimiter,
+    _NoOpSyncLimiter,
     _SyncRateLimiter,
+    _TokenPool,
     get_async_limiter,
+    get_async_pool,
     get_sync_limiter,
+    get_sync_pool,
 )
 
 # --- _SyncRateLimiter ---
@@ -250,3 +256,97 @@ def test_get_async_limiter_raises_on_conflicting_rate():
     get_async_limiter("conflict-async", 6, 60.0)
     with pytest.raises(ValueError, match="already exists"):
         get_async_limiter("conflict-async", 10, 60.0)
+
+
+# --- _TokenPool / _AsyncTokenPool ---
+
+def test_sync_pool_select_returns_highest_capacity():
+    limiter_a = _SyncRateLimiter(rate=6, window=60.0)
+    limiter_b = _SyncRateLimiter(rate=6, window=60.0)
+    limiter_a.acquire()
+    limiter_a.acquire()  # a: 4 remaining, b: 6 remaining
+    pool = _TokenPool([("tok_a", limiter_a), ("tok_b", limiter_b)])
+    token, selected = pool.select()
+    assert token == "tok_b"
+    assert selected is limiter_b
+
+
+def test_sync_pool_select_single_entry():
+    limiter = _SyncRateLimiter(rate=6, window=60.0)
+    pool = _TokenPool([("only", limiter)])
+    token, selected = pool.select()
+    assert token == "only"
+    assert selected is limiter
+
+
+def test_sync_pool_select_prefers_higher_rate_limit():
+    limiter_a = _SyncRateLimiter(rate=6, window=60.0)
+    limiter_b = _SyncRateLimiter(rate=10, window=60.0)
+    pool = _TokenPool([("tok_a", limiter_a), ("tok_b", limiter_b)])
+    token, _ = pool.select()
+    assert token == "tok_b"
+
+
+async def test_async_pool_select_returns_highest_capacity():
+    limiter_a = _AsyncRateLimiter(rate=6, window=60.0)
+    limiter_b = _AsyncRateLimiter(rate=6, window=60.0)
+    await limiter_a.acquire()
+    await limiter_a.acquire()  # a: 4 remaining, b: 6 remaining
+    pool = _AsyncTokenPool([("tok_a", limiter_a), ("tok_b", limiter_b)])
+    token, selected = pool.select()
+    assert token == "tok_b"
+    assert selected is limiter_b
+
+
+def test_get_sync_pool_builds_entries_with_correct_rates():
+    pool = get_sync_pool({"pool-sync-alpha": 6, "pool-sync-beta": 10}, 60.0)
+    assert len(pool._entries) == 2
+    rates = {t: l._rate for t, l in pool._entries}
+    assert rates["pool-sync-alpha"] == 6
+    assert rates["pool-sync-beta"] == 10
+
+
+async def test_get_async_pool_builds_entries_with_correct_rates():
+    pool = get_async_pool({"pool-async-alpha": 6, "pool-async-beta": 10}, 60.0)
+    assert len(pool._entries) == 2
+    rates = {t: l._rate for t, l in pool._entries}
+    assert rates["pool-async-alpha"] == 6
+    assert rates["pool-async-beta"] == 10
+
+
+def test_no_op_sync_limiter_capacity_is_large():
+    limiter = _NoOpSyncLimiter()
+    assert limiter.capacity() == 10**9
+
+
+def test_no_op_sync_limiter_acquire_is_noop():
+    limiter = _NoOpSyncLimiter()
+    limiter.acquire()  # must not raise or block
+
+
+async def test_no_op_async_limiter_capacity_is_large():
+    limiter = _NoOpAsyncLimiter()
+    assert limiter.capacity() == 10**9
+
+
+async def test_no_op_async_limiter_acquire_is_noop():
+    limiter = _NoOpAsyncLimiter()
+    await limiter.acquire()  # must not raise or block
+
+
+def test_sync_pool_none_rate_uses_noop_limiter():
+    pool = get_sync_pool({"unlimited-sync-tok": None}, 60.0)
+    _, limiter = pool._entries[0]
+    assert isinstance(limiter, _NoOpSyncLimiter)
+
+
+def test_sync_pool_none_rate_wins_select_over_rate_limited():
+    pool = get_sync_pool({"limited-tok": 6, "unlimited-tok": None}, 60.0)
+    token, _ = pool.select()
+    assert token == "unlimited-tok"
+
+
+async def test_async_pool_none_rate_uses_noop_limiter():
+    pool = get_async_pool({"unlimited-async-tok": None}, 60.0)
+    _, limiter = pool._entries[0]
+    assert isinstance(limiter, _NoOpAsyncLimiter)

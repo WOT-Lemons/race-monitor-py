@@ -78,7 +78,15 @@ with RaceMonitorClient(api_token="YOUR_TOKEN") as client:
     competitor: LiveCompetitor = session["Session"]["Competitors"]["42"]
 ```
 
+## Contributing
+
+Contributions are welcome. A few areas where help is especially useful:
+
+- **Live streaming** — `client.live.get_streaming_connection()` returns connection credentials (socket host, WebSocket URLs, and a timing token), but the actual socket/WebSocket connection and streaming protocol handling are not implemented in this library. Testing requires an active Race Monitor relay account. If you have relay access and want to validate or extend the streaming support, please open an issue or PR.
+- **Media endpoints** — The `/v2/Media` controller (HLS video stream management) is not yet implemented. See [`docs/api-coverage.md`](docs/api-coverage.md) for the full list of missing endpoints.
+
 ## Documentation
 
 - Full library API reference: <https://wot-lemons.github.io/race-monitor-py>
 - Race Monitor API: <https://www.race-monitor.com/APIDocs>
+- API coverage: [`docs/api-coverage.md`](docs/api-coverage.md)

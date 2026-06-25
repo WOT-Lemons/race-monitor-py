@@ -100,7 +100,8 @@ def test_search_results_with_app_section_id(make_client):
 def test_sessions_in_date_range(make_client):
     client, transport = make_client((200, SUCCESS))
     client.results.sessions_in_date_range_for_race(
-        race_id=1, start_date_epoc=1000, end_date_epoc=2000)
+        race_id=1, start_date_epoc=1000, end_date_epoc=2000
+    )
     body = transport.last_request.read()
     assert b"raceID=1" in body
     assert b"startDateEpoc=1000" in body

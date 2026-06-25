@@ -21,7 +21,7 @@ class AsyncRaceMonitorClient:
         api_token: Your Race Monitor API token(s). Accepts:
             - ``str``: single token, uses ``requests_per_minute`` as its rate.
             - ``list[str]``: multiple tokens, all using ``requests_per_minute``.
-            - ``dict[str, int]``: maps each token to its own requests-per-minute
+            - ``dict[str, int | None]``: maps each token to its own requests-per-minute
               limit; ``requests_per_minute`` is ignored.
         retry_delay: Seconds to wait before retrying a 429 response. Defaults
             to 10s (the developer plan rate limit window).
@@ -53,7 +53,7 @@ class AsyncRaceMonitorClient:
         elif isinstance(api_token, list):
             if not api_token:
                 raise ValueError("api_token list must contain at least one token")
-            token_rates = {t: requests_per_minute for t in api_token}
+            token_rates = dict.fromkeys(api_token, requests_per_minute)
         else:
             if not api_token:
                 raise ValueError("api_token dict must contain at least one token")
@@ -80,11 +80,11 @@ class AsyncRaceMonitorClient:
         """POST to the API, selecting the least-loaded token and retrying on 429."""
         while True:
             token, limiter = self._pool.select()
-            await limiter.acquire()
+            ts = await limiter.acquire()
             data = {"apiToken": token, **kwargs}
             response = await self._http.post(f"{BASE_URL}{path}", data=data, timeout=30)
             if response.status_code == 429:
-                limiter.release()
+                limiter.release(ts)
                 await asyncio.sleep(self._retry_delay)
                 continue
             return _parse_response(response)

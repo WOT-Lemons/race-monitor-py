@@ -1,5 +1,7 @@
 import asyncio
+import contextlib
 import logging
+import random
 import threading
 import time
 from collections import deque
@@ -26,7 +28,7 @@ class _SyncRateLimiter:
             in_window = sum(1 for ts in self._timestamps if ts > now - self._window)
             return self._rate - in_window
 
-    def acquire(self) -> None:
+    def acquire(self) -> float:
         while True:
             with self._lock:
                 now = time.monotonic()
@@ -34,21 +36,25 @@ class _SyncRateLimiter:
                     self._timestamps.popleft()
                 if len(self._timestamps) < self._rate:
                     self._timestamps.append(now)
-                    return
+                    return now
                 wait = self._window - (now - self._timestamps[0])
                 slots_used = len(self._timestamps)
                 oldest_age = now - self._timestamps[0]
             _logger.info(
                 "Rate limited on ...%s: sleeping %.2fs "
                 "[%d/%d slots used over %.0fs window; oldest request %.2fs ago]",
-                self._label, max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
+                self._label,
+                max(0.0, wait),
+                slots_used,
+                self._rate,
+                self._window,
+                oldest_age,
             )
             time.sleep(max(0.0, wait))
 
-    def release(self) -> None:
-        with self._lock:
-            if self._timestamps:
-                self._timestamps.pop()
+    def release(self, ts: float) -> None:
+        with self._lock, contextlib.suppress(ValueError):  # ValueError: evicted by window cleanup
+            self._timestamps.remove(ts)
 
 
 class _AsyncRateLimiter:
@@ -65,7 +71,7 @@ class _AsyncRateLimiter:
         now = time.monotonic()
         return self._rate - sum(1 for ts in self._timestamps if ts > now - self._window)
 
-    async def acquire(self) -> None:
+    async def acquire(self) -> float:
         while True:
             async with self._lock:
                 now = time.monotonic()
@@ -73,20 +79,49 @@ class _AsyncRateLimiter:
                     self._timestamps.popleft()
                 if len(self._timestamps) < self._rate:
                     self._timestamps.append(now)
-                    return
+                    return now
                 wait = self._window - (now - self._timestamps[0])
                 slots_used = len(self._timestamps)
                 oldest_age = now - self._timestamps[0]
             _logger.info(
                 "Rate limited on ...%s: sleeping %.2fs "
                 "[%d/%d slots used over %.0fs window; oldest request %.2fs ago]",
-                self._label, max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
+                self._label,
+                max(0.0, wait),
+                slots_used,
+                self._rate,
+                self._window,
+                oldest_age,
             )
             await asyncio.sleep(max(0.0, wait))
 
-    def release(self) -> None:
-        if self._timestamps:
-            self._timestamps.pop()
+    def release(self, ts: float) -> None:
+        # No lock needed: asyncio cooperative scheduling ensures no other coroutine
+        # modifies _timestamps between statement boundaries, and deque.remove is atomic.
+        with contextlib.suppress(ValueError):  # may be evicted by window cleanup
+            self._timestamps.remove(ts)
+
+
+class _NoOpSyncLimiter:
+    def capacity(self) -> int:
+        return 10**9
+
+    def acquire(self) -> float:
+        return 0.0
+
+    def release(self, ts: float) -> None:
+        pass
+
+
+class _NoOpAsyncLimiter:
+    def capacity(self) -> int:
+        return 10**9
+
+    async def acquire(self) -> float:
+        return 0.0
+
+    def release(self, ts: float) -> None:
+        pass
 
 
 def get_sync_limiter(token: str, rate: int, window: float) -> _SyncRateLimiter:
@@ -127,34 +162,15 @@ def get_async_limiter(token: str, rate: int, window: float) -> _AsyncRateLimiter
         return limiter
 
 
-class _NoOpSyncLimiter:
-    def capacity(self) -> int:
-        return 10**9
-
-    def acquire(self) -> None:
-        pass
-
-    def release(self) -> None:
-        pass
-
-
-class _NoOpAsyncLimiter:
-    def capacity(self) -> int:
-        return 10**9
-
-    async def acquire(self) -> None:
-        pass
-
-    def release(self) -> None:
-        pass
-
-
 class _TokenPool:
     def __init__(self, entries: list[tuple[str, _SyncRateLimiter | _NoOpSyncLimiter]]) -> None:
         self._entries = entries
 
     def select(self) -> tuple[str, _SyncRateLimiter | _NoOpSyncLimiter]:
-        return max(self._entries, key=lambda e: e[1].capacity())
+        caps = [(e, e[1].capacity()) for e in self._entries]
+        max_cap = max(c for _, c in caps)
+        candidates = [e for e, c in caps if c == max_cap]
+        return random.choice(candidates)
 
 
 class _AsyncTokenPool:
@@ -162,7 +178,10 @@ class _AsyncTokenPool:
         self._entries = entries
 
     def select(self) -> tuple[str, _AsyncRateLimiter | _NoOpAsyncLimiter]:
-        return max(self._entries, key=lambda e: e[1].capacity())
+        caps = [(e, e[1].capacity()) for e in self._entries]
+        max_cap = max(c for _, c in caps)
+        candidates = [e for e, c in caps if c == max_cap]
+        return random.choice(candidates)
 
 
 def get_sync_pool(token_rates: dict[str, int | None], window: float) -> _TokenPool:

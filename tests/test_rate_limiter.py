@@ -17,6 +17,7 @@ from race_monitor._rate_limiter import (
 
 # --- _SyncRateLimiter ---
 
+
 def test_sync_limiter_rejects_invalid_rate():
     with pytest.raises(ValueError, match="rate must be >= 1"):
         _SyncRateLimiter(rate=0)
@@ -42,9 +43,9 @@ def test_sync_sleeps_when_rate_exceeded(monkeypatch):
     monkeypatch.setattr("race_monitor._rate_limiter.time.sleep", mock_sleep)
 
     limiter = _SyncRateLimiter(rate=2, window=60.0)
-    limiter.acquire()   # t=0 → timestamps=[0.0]
-    limiter.acquire()   # t=0 → timestamps=[0.0, 0.0]
-    limiter.acquire()   # t=0 → full → sleep(60) → t=60 → evict both → timestamps=[60.0]
+    limiter.acquire()  # t=0 → timestamps=[0.0]
+    limiter.acquire()  # t=0 → timestamps=[0.0, 0.0]
+    limiter.acquire()  # t=0 → full → sleep(60) → t=60 → evict both → timestamps=[60.0]
 
     assert len(slept) == 1
     assert slept[0] == pytest.approx(60.0)
@@ -123,6 +124,7 @@ def test_get_sync_limiter_sets_label():
 
 # --- _AsyncRateLimiter ---
 
+
 async def test_async_limiter_rejects_invalid_rate():
     with pytest.raises(ValueError, match="rate must be >= 1"):
         _AsyncRateLimiter(rate=0)
@@ -148,9 +150,9 @@ async def test_async_sleeps_when_rate_exceeded(monkeypatch):
     monkeypatch.setattr("race_monitor._rate_limiter.asyncio.sleep", mock_sleep)
 
     limiter = _AsyncRateLimiter(rate=2, window=60.0)
-    await limiter.acquire()   # t=0 → timestamps=[0.0]
-    await limiter.acquire()   # t=0 → timestamps=[0.0, 0.0]
-    await limiter.acquire()   # t=0 → full → sleep(60) → t=60 → evict both → timestamps=[60.0]
+    await limiter.acquire()  # t=0 → timestamps=[0.0]
+    await limiter.acquire()  # t=0 → timestamps=[0.0, 0.0]
+    await limiter.acquire()  # t=0 → full → sleep(60) → t=60 → evict both → timestamps=[60.0]
 
     assert len(slept) == 1
     assert slept[0] == pytest.approx(60.0)
@@ -222,31 +224,32 @@ def test_get_async_limiter_sets_label():
 
 def test_sync_release_restores_capacity():
     limiter = _SyncRateLimiter(rate=2, window=60.0)
-    limiter.acquire()
+    ts = limiter.acquire()
     assert limiter.capacity() == 1
-    limiter.release()
+    limiter.release(ts)
     assert limiter.capacity() == 2
 
 
 async def test_async_release_restores_capacity():
     limiter = _AsyncRateLimiter(rate=2, window=60.0)
-    await limiter.acquire()
+    ts = await limiter.acquire()
     assert limiter.capacity() == 1
-    limiter.release()
+    limiter.release(ts)
     assert limiter.capacity() == 2
 
 
 def test_no_op_sync_limiter_release_is_noop():
     limiter = _NoOpSyncLimiter()
-    limiter.release()  # must not raise
+    limiter.release(0.0)  # must not raise
 
 
 async def test_no_op_async_limiter_release_is_noop():
     limiter = _NoOpAsyncLimiter()
-    limiter.release()  # must not raise
+    limiter.release(0.0)  # must not raise
 
 
 # --- Registry ---
+
 
 def test_get_sync_limiter_same_token_returns_same_instance():
     a = get_sync_limiter("registry-same", 6, 60.0)
@@ -285,6 +288,7 @@ def test_get_async_limiter_raises_on_conflicting_rate():
 
 
 # --- _TokenPool / _AsyncTokenPool ---
+
 
 def test_sync_pool_select_returns_highest_capacity():
     limiter_a = _SyncRateLimiter(rate=6, window=60.0)
@@ -327,7 +331,7 @@ async def test_async_pool_select_returns_highest_capacity():
 def test_get_sync_pool_builds_entries_with_correct_rates():
     pool = get_sync_pool({"pool-sync-alpha": 6, "pool-sync-beta": 10}, 60.0)
     assert len(pool._entries) == 2
-    rates = {t: l._rate for t, l in pool._entries}
+    rates = {t: lim._rate for t, lim in pool._entries}
     assert rates["pool-sync-alpha"] == 6
     assert rates["pool-sync-beta"] == 10
 
@@ -335,7 +339,7 @@ def test_get_sync_pool_builds_entries_with_correct_rates():
 async def test_get_async_pool_builds_entries_with_correct_rates():
     pool = get_async_pool({"pool-async-alpha": 6, "pool-async-beta": 10}, 60.0)
     assert len(pool._entries) == 2
-    rates = {t: l._rate for t, l in pool._entries}
+    rates = {t: lim._rate for t, lim in pool._entries}
     assert rates["pool-async-alpha"] == 6
     assert rates["pool-async-beta"] == 10
 

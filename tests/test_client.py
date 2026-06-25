@@ -246,3 +246,21 @@ async def test_async_post_injects_token_from_pool(make_async_client, monkeypatch
     monkeypatch.setattr(client._pool, "select", lambda: ("injected-async-token", fake_limiter))
     await client.post("/v2/Race/RaceDetails", raceID=1)
     assert b"apiToken=injected-async-token" in transport.last_request.read()
+
+
+# --- 429 slot release ---
+
+def test_429_does_not_consume_limiter_slot(make_client):
+    client, _ = make_client((429, {}), (200, SUCCESS), retry_delay=0)
+    limiter = client._pool._entries[0][1]
+    initial_capacity = limiter.capacity()
+    client.post("/v2/Race/RaceDetails", raceID=1)
+    assert limiter.capacity() == initial_capacity - 1
+
+
+async def test_async_429_does_not_consume_limiter_slot(make_async_client):
+    client, _ = make_async_client((429, {}), (200, SUCCESS), retry_delay=0)
+    limiter = client._pool._entries[0][1]
+    initial_capacity = limiter.capacity()
+    await client.post("/v2/Race/RaceDetails", raceID=1)
+    assert limiter.capacity() == initial_capacity - 1

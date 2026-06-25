@@ -220,6 +220,32 @@ def test_get_async_limiter_sets_label():
     assert limiter._label == "efgh"
 
 
+def test_sync_release_restores_capacity():
+    limiter = _SyncRateLimiter(rate=2, window=60.0)
+    limiter.acquire()
+    assert limiter.capacity() == 1
+    limiter.release()
+    assert limiter.capacity() == 2
+
+
+async def test_async_release_restores_capacity():
+    limiter = _AsyncRateLimiter(rate=2, window=60.0)
+    await limiter.acquire()
+    assert limiter.capacity() == 1
+    limiter.release()
+    assert limiter.capacity() == 2
+
+
+def test_no_op_sync_limiter_release_is_noop():
+    limiter = _NoOpSyncLimiter()
+    limiter.release()  # must not raise
+
+
+async def test_no_op_async_limiter_release_is_noop():
+    limiter = _NoOpAsyncLimiter()
+    limiter.release()  # must not raise
+
+
 # --- Registry ---
 
 def test_get_sync_limiter_same_token_returns_same_instance():

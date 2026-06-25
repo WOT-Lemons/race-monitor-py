@@ -84,6 +84,7 @@ class AsyncRaceMonitorClient:
             data = {"apiToken": token, **kwargs}
             response = await self._http.post(f"{BASE_URL}{path}", data=data, timeout=30)
             if response.status_code == 429:
+                limiter.release()
                 await asyncio.sleep(self._retry_delay)
                 continue
             return _parse_response(response)

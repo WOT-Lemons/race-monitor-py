@@ -45,6 +45,11 @@ class _SyncRateLimiter:
             )
             time.sleep(max(0.0, wait))
 
+    def release(self) -> None:
+        with self._lock:
+            if self._timestamps:
+                self._timestamps.pop()
+
 
 class _AsyncRateLimiter:
     def __init__(self, rate: int, window: float = 60.0, label: str = "") -> None:
@@ -78,6 +83,10 @@ class _AsyncRateLimiter:
                 self._label, max(0.0, wait), slots_used, self._rate, self._window, oldest_age,
             )
             await asyncio.sleep(max(0.0, wait))
+
+    def release(self) -> None:
+        if self._timestamps:
+            self._timestamps.pop()
 
 
 def get_sync_limiter(token: str, rate: int, window: float) -> _SyncRateLimiter:
@@ -125,12 +134,18 @@ class _NoOpSyncLimiter:
     def acquire(self) -> None:
         pass
 
+    def release(self) -> None:
+        pass
+
 
 class _NoOpAsyncLimiter:
     def capacity(self) -> int:
         return 10**9
 
     async def acquire(self) -> None:
+        pass
+
+    def release(self) -> None:
         pass
 
 

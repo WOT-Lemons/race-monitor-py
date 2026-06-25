@@ -1,4 +1,7 @@
+import dataclasses
+
 import pytest
+
 import race_monitor._protocol as _mod
 from race_monitor._protocol import StreamingCommand
 
@@ -76,7 +79,7 @@ class TestGetStreamingCommand:
 class TestStreamingCommandDataclass:
     def test_is_frozen(self):
         cmd = _mod.get_streaming_command("$J")
-        with pytest.raises(Exception):
+        with pytest.raises(dataclasses.FrozenInstanceError):
             cmd.name = "mutated"  # type: ignore[misc]
 
     def test_fields_are_accessible(self):

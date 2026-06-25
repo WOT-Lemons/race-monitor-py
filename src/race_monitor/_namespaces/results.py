@@ -27,9 +27,7 @@ class ResultsNamespace:
         """
         return self._post("/v2/Results/CompetitorDetails", competitorID=competitor_id)
 
-    def competitors_with_transponder(
-        self, transponder: str
-    ) -> CompetitorsWithTransponderResponse:
+    def competitors_with_transponder(self, transponder: str) -> CompetitorsWithTransponderResponse:
         """Find competitors in results that have a given transponder value.
 
         Stability: Beta — subject to change without notice.
@@ -363,9 +361,7 @@ class AsyncResultsNamespace:
             includeLapTimes=include_lap_times,
         )
 
-    async def sessions_for_race(
-        self, race_id: int | str, device_id: str = ""
-    ) -> SessionsResponse:
+    async def sessions_for_race(self, race_id: int | str, device_id: str = "") -> SessionsResponse:
         """Get sessions for a race.
 
         Only valid sessions or those manually marked 'Display In App' are returned.

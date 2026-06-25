@@ -11,19 +11,22 @@ from ._namespaces.common import AsyncCommonNamespace
 from ._namespaces.live import AsyncLiveNamespace
 from ._namespaces.race import AsyncRaceNamespace
 from ._namespaces.results import AsyncResultsNamespace
-from ._rate_limiter import get_async_limiter
+from ._rate_limiter import get_async_pool
 
 
 class AsyncRaceMonitorClient:
     """Asynchronous Race Monitor API client.
 
     Args:
-        api_token: Your Race Monitor API token.
+        api_token: Your Race Monitor API token(s). Accepts:
+            - ``str``: single token, uses ``requests_per_minute`` as its rate.
+            - ``list[str]``: multiple tokens, all using ``requests_per_minute``.
+            - ``dict[str, int | None]``: maps each token to its own requests-per-minute
+              limit; ``requests_per_minute`` is ignored.
         retry_delay: Seconds to wait before retrying a 429 response. Defaults
             to 10s (the developer plan rate limit window).
-        requests_per_minute: Maximum requests per minute, shared across all
-            client instances using the same token. Defaults to 6 (developer
-            plan limit). Set higher if your plan allows more.
+        requests_per_minute: Maximum requests per minute for ``str`` and
+            ``list[str]`` inputs. Defaults to 6 (developer plan limit).
         **kwargs: Passed through to ``httpx.AsyncClient`` (e.g. ``transport`` for testing).
 
     Example::
@@ -31,19 +34,34 @@ class AsyncRaceMonitorClient:
         async with AsyncRaceMonitorClient(api_token="TOKEN") as client:
             if (await client.race.is_live(race_id=12345))["IsLive"]:
                 session = await client.live.get_session(race_id=12345)
+
+        # Two tokens, double the rate limit:
+        async with AsyncRaceMonitorClient(api_token=["TOKEN1", "TOKEN2"]) as client:
+            session = await client.live.get_session(race_id=12345)
     """
 
     def __init__(
         self,
-        api_token: str,
+        api_token: str | list[str] | dict[str, int | None],
         retry_delay: float = 10.0,
-        requests_per_minute: int = 6,
+        requests_per_minute: int | None = 6,
         **kwargs,
     ) -> None:
         """Initialize the client. See class docstring for parameter details."""
-        self._token = api_token
+        if isinstance(api_token, str):
+            token_rates = {api_token: requests_per_minute}
+        elif isinstance(api_token, list):
+            if not api_token:
+                raise ValueError("api_token list must contain at least one token")
+            token_rates = dict.fromkeys(api_token, requests_per_minute)
+        elif isinstance(api_token, dict):
+            if not api_token:
+                raise ValueError("api_token dict must contain at least one token")
+            token_rates = api_token
+        else:
+            raise TypeError("api_token must be a str, list[str], or dict[str, int | None]")
+        self._pool = get_async_pool(token_rates, 60.0)
         self._retry_delay = retry_delay
-        self._limiter = get_async_limiter(api_token, requests_per_minute, 60.0)
         self._http = httpx.AsyncClient(**kwargs)
         self.account = AsyncAccountNamespace(self._post)
         self.common = AsyncCommonNamespace(self._post)
@@ -61,12 +79,14 @@ class AsyncRaceMonitorClient:
         return await self._http.__aexit__(*args)
 
     async def _post(self, path: str, **kwargs) -> dict[str, Any]:
-        """POST to the API, acquiring a rate-limit token and retrying on 429."""
-        data = {"apiToken": self._token, **kwargs}
+        """POST to the API, selecting the least-loaded token and retrying on 429."""
         while True:
-            await self._limiter.acquire()
+            token, limiter = self._pool.select()
+            ts = await limiter.acquire()
+            data = {**kwargs, "apiToken": token}
             response = await self._http.post(f"{BASE_URL}{path}", data=data, timeout=30)
             if response.status_code == 429:
+                limiter.release(ts)
                 await asyncio.sleep(self._retry_delay)
                 continue
             return _parse_response(response)

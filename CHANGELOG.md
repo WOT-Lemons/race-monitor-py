@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.5.1...v0.6.0) (2026-06-25)
+
+
+### Features
+
+* **client:** add multi-token load balancing ([2fae27b](https://github.com/WOT-Lemons/race-monitor-py/commit/2fae27b8a1fc2cbfe809f638121f7b514e82b6c9))
+* **protocol:** add StreamingCommand, is_streaming_command, get_streaming_command ([89f27bf](https://github.com/WOT-Lemons/race-monitor-py/commit/89f27bfd915d51d770a634e8975b58d90b3a72a9))
+
 ## [0.5.1](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.5.0...v0.5.1) (2026-06-06)
 
 

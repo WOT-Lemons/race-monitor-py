@@ -84,3 +84,19 @@ class TestStreamingCommandDataclass:
         assert hasattr(cmd, "name")
         assert hasattr(cmd, "description")
         assert hasattr(cmd, "when")
+
+
+class TestPublicExports:
+    def test_is_streaming_command_importable_from_package(self):
+        from race_monitor import is_streaming_command
+        assert is_streaming_command("$J") is True
+
+    def test_get_streaming_command_importable_from_package(self):
+        from race_monitor import get_streaming_command
+        result = get_streaming_command("$J")
+        assert result is not None
+        assert result.name == "Passing Information"
+
+    def test_streaming_command_importable_from_package(self):
+        from race_monitor import StreamingCommand
+        assert StreamingCommand("a", "b", "c").name == "a"

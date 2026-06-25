@@ -82,7 +82,7 @@ with RaceMonitorClient(api_token="YOUR_TOKEN") as client:
 
 Contributions are welcome. A few areas where help is especially useful:
 
-- **Live streaming** — `client.live.get_streaming_connection()` returns a socket endpoint, but testing the full streaming protocol requires an active Race Monitor relay account. If you have relay access and want to validate or extend the streaming support, please open an issue or PR.
+- **Live streaming** — `client.live.get_streaming_connection()` returns connection credentials (socket host, WebSocket URLs, and a timing token), but the actual socket/WebSocket connection and streaming protocol handling are not implemented in this library. Testing requires an active Race Monitor relay account. If you have relay access and want to validate or extend the streaming support, please open an issue or PR.
 - **Media endpoints** — The `/v2/Media` controller (HLS video stream management) is not yet implemented. See [`docs/api-coverage.md`](docs/api-coverage.md) for the full list of missing endpoints.
 
 ## Documentation

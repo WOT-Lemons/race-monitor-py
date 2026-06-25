@@ -54,10 +54,12 @@ class AsyncRaceMonitorClient:
             if not api_token:
                 raise ValueError("api_token list must contain at least one token")
             token_rates = dict.fromkeys(api_token, requests_per_minute)
-        else:
+        elif isinstance(api_token, dict):
             if not api_token:
                 raise ValueError("api_token dict must contain at least one token")
             token_rates = api_token
+        else:
+            raise TypeError("api_token must be a str, list[str], or dict[str, int | None]")
         self._pool = get_async_pool(token_rates, 60.0)
         self._retry_delay = retry_delay
         self._http = httpx.AsyncClient(**kwargs)
@@ -81,7 +83,7 @@ class AsyncRaceMonitorClient:
         while True:
             token, limiter = self._pool.select()
             ts = await limiter.acquire()
-            data = {"apiToken": token, **kwargs}
+            data = {**kwargs, "apiToken": token}
             response = await self._http.post(f"{BASE_URL}{path}", data=data, timeout=30)
             if response.status_code == 429:
                 limiter.release(ts)

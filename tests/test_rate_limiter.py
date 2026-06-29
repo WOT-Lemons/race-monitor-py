@@ -443,10 +443,11 @@ def test_sync_pool_cooldown_wait_zero_when_none_cooling():
     assert pool.cooldown_wait() == 0.0
 
 
-def test_no_op_sync_limiter_never_cools():
+def test_no_op_sync_limiter_honors_cooldown():
     limiter = _NoOpSyncLimiter()
-    limiter.mark_cooldown(10.0)  # must not raise
     assert limiter.cooling() == 0.0
+    limiter.mark_cooldown(10.0)
+    assert limiter.cooling() == pytest.approx(10.0, abs=0.5)
 
 
 async def test_async_mark_cooldown_makes_limiter_cool():
@@ -474,7 +475,8 @@ def test_async_pool_select_returns_none_when_all_cooling():
     assert pool.select() is None
 
 
-def test_no_op_async_limiter_never_cools():
+def test_no_op_async_limiter_honors_cooldown():
     limiter = _NoOpAsyncLimiter()
-    limiter.mark_cooldown(10.0)  # must not raise
     assert limiter.cooling() == 0.0
+    limiter.mark_cooldown(10.0)
+    assert limiter.cooling() == pytest.approx(10.0, abs=0.5)

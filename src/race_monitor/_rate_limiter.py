@@ -127,6 +127,12 @@ class _AsyncRateLimiter:
 
 
 class _NoOpSyncLimiter:
+    """Unlimited-rate limiter: no local throttling, but still honors 429 cooldown
+    so an unlimited token backs off on a server 429 instead of hot-looping."""
+
+    def __init__(self) -> None:
+        self._cooldown_until = 0.0
+
     def capacity(self) -> int:
         return 10**9
 
@@ -137,13 +143,19 @@ class _NoOpSyncLimiter:
         pass
 
     def cooling(self) -> float:
-        return 0.0
+        return max(0.0, self._cooldown_until - time.monotonic())
 
     def mark_cooldown(self, duration: float) -> None:
-        pass
+        self._cooldown_until = time.monotonic() + duration
 
 
 class _NoOpAsyncLimiter:
+    """Unlimited-rate limiter: no local throttling, but still honors 429 cooldown
+    so an unlimited token backs off on a server 429 instead of hot-looping."""
+
+    def __init__(self) -> None:
+        self._cooldown_until = 0.0
+
     def capacity(self) -> int:
         return 10**9
 
@@ -154,10 +166,10 @@ class _NoOpAsyncLimiter:
         pass
 
     def cooling(self) -> float:
-        return 0.0
+        return max(0.0, self._cooldown_until - time.monotonic())
 
     def mark_cooldown(self, duration: float) -> None:
-        pass
+        self._cooldown_until = time.monotonic() + duration
 
 
 def get_sync_limiter(token: str, rate: int, window: float) -> _SyncRateLimiter:

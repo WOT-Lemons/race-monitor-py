@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.6.0...v0.6.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **rate-limit:** rotate to another token on 429 instead of re-hammering ([#40](https://github.com/WOT-Lemons/race-monitor-py/issues/40)) ([4034b76](https://github.com/WOT-Lemons/race-monitor-py/commit/4034b76eff10d0905ebc9b808a79951079475e9c))
+
 ## [0.6.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.5.1...v0.6.0) (2026-06-25)
 
 

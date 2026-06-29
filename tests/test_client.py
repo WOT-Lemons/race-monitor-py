@@ -1,3 +1,4 @@
+import httpx
 import pytest
 
 from race_monitor import RaceMonitorError, RaceMonitorHTTPError
@@ -288,3 +289,114 @@ async def test_async_429_does_not_consume_limiter_slot(make_async_client):
     initial_capacity = limiter.capacity()
     await client.post("/v2/Race/RaceDetails", raceID=1)
     assert limiter.capacity() == initial_capacity - 1
+
+
+# --- 429 rotates to a different token ---
+
+
+class _RecordingTransport(httpx.BaseTransport):
+    """Records which apiToken each request carried; replays a status sequence."""
+
+    def __init__(self, *statuses: int) -> None:
+        self._statuses = list(statuses)
+        self._index = 0
+        self.tokens_used: list[str] = []
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        body = request.read().decode()
+        self.tokens_used.append("AAAA" if "apiToken=AAAA" in body else "BBBB")
+        status = self._statuses[self._index]
+        self._index += 1
+        return httpx.Response(status, json=SUCCESS if status == 200 else {})
+
+
+class _AsyncRecordingTransport(httpx.AsyncBaseTransport):
+    def __init__(self, *statuses: int) -> None:
+        self._statuses = list(statuses)
+        self._index = 0
+        self.tokens_used: list[str] = []
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        body = request.read().decode()
+        self.tokens_used.append("AAAA" if "apiToken=AAAA" in body else "BBBB")
+        status = self._statuses[self._index]
+        self._index += 1
+        return httpx.Response(status, json=SUCCESS if status == 200 else {})
+
+
+def test_429_rotates_to_other_token(monkeypatch):
+    from race_monitor import RaceMonitorClient
+
+    # Make selection deterministic: always take the first eligible candidate.
+    monkeypatch.setattr("race_monitor._rate_limiter.random.choice", lambda seq: seq[0])
+    monkeypatch.setattr("race_monitor.client.time.sleep", lambda secs: None)
+    transport = _RecordingTransport(429, 200)
+    client = RaceMonitorClient(
+        api_token=["AAAA", "BBBB"], retry_delay=60, transport=transport
+    )
+    result = client.post("/v2/Race/RaceDetails", raceID=1)
+    assert result == SUCCESS
+    # First attempt 429'd on AAAA; the retry must switch to BBBB, not reuse AAAA.
+    assert transport.tokens_used == ["AAAA", "BBBB"]
+
+
+async def test_async_429_rotates_to_other_token(monkeypatch):
+    from race_monitor import AsyncRaceMonitorClient
+
+    async def _noop_sleep(secs):
+        return None
+
+    monkeypatch.setattr("race_monitor._rate_limiter.random.choice", lambda seq: seq[0])
+    monkeypatch.setattr("race_monitor.async_client.asyncio.sleep", _noop_sleep)
+    transport = _AsyncRecordingTransport(429, 200)
+    client = AsyncRaceMonitorClient(
+        api_token=["AAAA", "BBBB"], retry_delay=60, transport=transport
+    )
+    result = await client.post("/v2/Race/RaceDetails", raceID=1)
+    assert result == SUCCESS
+    assert transport.tokens_used == ["AAAA", "BBBB"]
+
+
+def test_429_on_unlimited_token_backs_off(monkeypatch):
+    """An unlimited (rate=None) token must still sleep on 429, not hot-loop."""
+    from race_monitor import RaceMonitorClient
+
+    # Fake clock so the mocked sleep advances time past the cooldown.
+    clock = [1000.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: clock[0])
+    sleeps: list[float] = []
+
+    def _sleep(secs):
+        sleeps.append(secs)
+        clock[0] += secs
+
+    monkeypatch.setattr("race_monitor.client.time.sleep", _sleep)
+    transport = _RecordingTransport(429, 200)
+    client = RaceMonitorClient(
+        api_token={"AAAA": None}, retry_delay=60, transport=transport
+    )
+    result = client.post("/v2/Race/RaceDetails", raceID=1)
+    assert result == SUCCESS
+    # The 429 must trigger a single backoff sleep before the retry succeeds.
+    assert sleeps == [pytest.approx(60.0, abs=0.5)]
+
+
+async def test_async_429_on_unlimited_token_backs_off(monkeypatch):
+    from race_monitor import AsyncRaceMonitorClient
+
+    clock = [1000.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: clock[0])
+    sleeps: list[float] = []
+
+    async def _sleep(secs):
+        sleeps.append(secs)
+        clock[0] += secs
+
+    monkeypatch.setattr("race_monitor.async_client.asyncio.sleep", _sleep)
+    transport = _AsyncRecordingTransport(429, 200)
+    client = AsyncRaceMonitorClient(
+        api_token={"AAAA": None}, retry_delay=60, transport=transport
+    )
+    result = await client.post("/v2/Race/RaceDetails", raceID=1)
+    assert result == SUCCESS
+    assert sleeps == [pytest.approx(60.0, abs=0.5)]

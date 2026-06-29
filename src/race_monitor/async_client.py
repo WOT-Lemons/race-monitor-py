@@ -79,15 +79,24 @@ class AsyncRaceMonitorClient:
         return await self._http.__aexit__(*args)
 
     async def _post(self, path: str, **kwargs) -> dict[str, Any]:
-        """POST to the API, selecting the least-loaded token and retrying on 429."""
+        """POST to the API, selecting the least-loaded token and retrying on 429.
+
+        A 429 puts the offending token in cooldown for ``retry_delay`` seconds so
+        the next attempt switches to another token; we only sleep once every token
+        is cooling down.
+        """
         while True:
-            token, limiter = self._pool.select()
+            selected = self._pool.select()
+            if selected is None:
+                await asyncio.sleep(self._pool.cooldown_wait())
+                continue
+            token, limiter = selected
             ts = await limiter.acquire()
             data = {**kwargs, "apiToken": token}
             response = await self._http.post(f"{BASE_URL}{path}", data=data, timeout=30)
             if response.status_code == 429:
                 limiter.release(ts)
-                await asyncio.sleep(self._retry_delay)
+                limiter.mark_cooldown(self._retry_delay)
                 continue
             return _parse_response(response)
 

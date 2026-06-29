@@ -20,7 +20,18 @@ class _SyncRateLimiter:
         self._window = window
         self._label = label
         self._timestamps: deque[float] = deque()
+        self._cooldown_until = 0.0
         self._lock = threading.Lock()
+
+    def cooling(self) -> float:
+        """Seconds remaining before this token may be used again (0 if available)."""
+        with self._lock:
+            return max(0.0, self._cooldown_until - time.monotonic())
+
+    def mark_cooldown(self, duration: float) -> None:
+        """Mark this token unusable for *duration* seconds (e.g. after a server 429)."""
+        with self._lock:
+            self._cooldown_until = time.monotonic() + duration
 
     def capacity(self) -> int:
         with self._lock:
@@ -65,7 +76,20 @@ class _AsyncRateLimiter:
         self._window = window
         self._label = label
         self._timestamps: deque[float] = deque()
+        self._cooldown_until = 0.0
         self._lock = asyncio.Lock()
+
+    def cooling(self) -> float:
+        """Seconds remaining before this token may be used again (0 if available).
+
+        No lock needed: a single float read/write is atomic under asyncio's
+        cooperative scheduling (same rationale as ``release``).
+        """
+        return max(0.0, self._cooldown_until - time.monotonic())
+
+    def mark_cooldown(self, duration: float) -> None:
+        """Mark this token unusable for *duration* seconds (e.g. after a server 429)."""
+        self._cooldown_until = time.monotonic() + duration
 
     def capacity(self) -> int:
         now = time.monotonic()
@@ -112,6 +136,12 @@ class _NoOpSyncLimiter:
     def release(self, ts: float) -> None:
         pass
 
+    def cooling(self) -> float:
+        return 0.0
+
+    def mark_cooldown(self, duration: float) -> None:
+        pass
+
 
 class _NoOpAsyncLimiter:
     def capacity(self) -> int:
@@ -121,6 +151,12 @@ class _NoOpAsyncLimiter:
         return 0.0
 
     def release(self, ts: float) -> None:
+        pass
+
+    def cooling(self) -> float:
+        return 0.0
+
+    def mark_cooldown(self, duration: float) -> None:
         pass
 
 
@@ -166,22 +202,42 @@ class _TokenPool:
     def __init__(self, entries: list[tuple[str, _SyncRateLimiter | _NoOpSyncLimiter]]) -> None:
         self._entries = entries
 
-    def select(self) -> tuple[str, _SyncRateLimiter | _NoOpSyncLimiter]:
-        caps = [(e, e[1].capacity()) for e in self._entries]
+    def select(self) -> tuple[str, _SyncRateLimiter | _NoOpSyncLimiter] | None:
+        """Return the highest-capacity token not in 429 cooldown, or ``None`` if
+        every token is cooling down (caller should wait ``cooldown_wait()`` seconds)."""
+        eligible = [e for e in self._entries if e[1].cooling() == 0.0]
+        if not eligible:
+            return None
+        caps = [(e, e[1].capacity()) for e in eligible]
         max_cap = max(c for _, c in caps)
         candidates = [e for e, c in caps if c == max_cap]
         return random.choice(candidates)
+
+    def cooldown_wait(self) -> float:
+        """Seconds until the soonest token leaves cooldown (0 if any is available now)."""
+        cooling = [c for c in (e[1].cooling() for e in self._entries) if c > 0.0]
+        return min(cooling) if cooling else 0.0
 
 
 class _AsyncTokenPool:
     def __init__(self, entries: list[tuple[str, _AsyncRateLimiter | _NoOpAsyncLimiter]]) -> None:
         self._entries = entries
 
-    def select(self) -> tuple[str, _AsyncRateLimiter | _NoOpAsyncLimiter]:
-        caps = [(e, e[1].capacity()) for e in self._entries]
+    def select(self) -> tuple[str, _AsyncRateLimiter | _NoOpAsyncLimiter] | None:
+        """Return the highest-capacity token not in 429 cooldown, or ``None`` if
+        every token is cooling down (caller should wait ``cooldown_wait()`` seconds)."""
+        eligible = [e for e in self._entries if e[1].cooling() == 0.0]
+        if not eligible:
+            return None
+        caps = [(e, e[1].capacity()) for e in eligible]
         max_cap = max(c for _, c in caps)
         candidates = [e for e, c in caps if c == max_cap]
         return random.choice(candidates)
+
+    def cooldown_wait(self) -> float:
+        """Seconds until the soonest token leaves cooldown (0 if any is available now)."""
+        cooling = [c for c in (e[1].cooling() for e in self._entries) if c > 0.0]
+        return min(cooling) if cooling else 0.0
 
 
 def get_sync_pool(token_rates: dict[str, int | None], window: float) -> _TokenPool:

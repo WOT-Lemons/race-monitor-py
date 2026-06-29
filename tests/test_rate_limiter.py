@@ -380,3 +380,101 @@ async def test_async_pool_none_rate_uses_noop_limiter():
     pool = get_async_pool({"unlimited-async-tok": None}, 60.0)
     _, limiter = pool._entries[0]
     assert isinstance(limiter, _NoOpAsyncLimiter)
+
+
+# --- 429 cooldown ---
+
+
+def test_sync_limiter_not_cooling_initially():
+    limiter = _SyncRateLimiter(rate=6, window=60.0)
+    assert limiter.cooling() == 0.0
+
+
+def test_sync_mark_cooldown_makes_limiter_cool():
+    limiter = _SyncRateLimiter(rate=6, window=60.0)
+    limiter.mark_cooldown(10.0)
+    assert limiter.cooling() == pytest.approx(10.0, abs=0.5)
+
+
+def test_sync_cooldown_expires(monkeypatch):
+    t = [100.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    limiter = _SyncRateLimiter(rate=6, window=60.0)
+    limiter.mark_cooldown(10.0)
+    assert limiter.cooling() == 10.0
+    t[0] = 110.0
+    assert limiter.cooling() == 0.0
+
+
+def test_sync_pool_select_skips_cooling_token():
+    cooling = _SyncRateLimiter(rate=6, window=60.0)
+    healthy = _SyncRateLimiter(rate=6, window=60.0)
+    cooling.mark_cooldown(10.0)
+    pool = _TokenPool([("cooling-tok", cooling), ("healthy-tok", healthy)])
+    # Even though both have full local capacity, the cooling token is skipped.
+    for _ in range(10):
+        token, selected = pool.select()
+        assert token == "healthy-tok"
+        assert selected is healthy
+
+
+def test_sync_pool_select_returns_none_when_all_cooling():
+    a = _SyncRateLimiter(rate=6, window=60.0)
+    b = _SyncRateLimiter(rate=6, window=60.0)
+    a.mark_cooldown(10.0)
+    b.mark_cooldown(10.0)
+    pool = _TokenPool([("a", a), ("b", b)])
+    assert pool.select() is None
+
+
+def test_sync_pool_cooldown_wait_returns_soonest_expiry(monkeypatch):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    a = _SyncRateLimiter(rate=6, window=60.0)
+    b = _SyncRateLimiter(rate=6, window=60.0)
+    a.mark_cooldown(10.0)
+    b.mark_cooldown(3.0)
+    pool = _TokenPool([("a", a), ("b", b)])
+    assert pool.cooldown_wait() == 3.0
+
+
+def test_sync_pool_cooldown_wait_zero_when_none_cooling():
+    pool = _TokenPool([("a", _SyncRateLimiter(rate=6, window=60.0))])
+    assert pool.cooldown_wait() == 0.0
+
+
+def test_no_op_sync_limiter_never_cools():
+    limiter = _NoOpSyncLimiter()
+    limiter.mark_cooldown(10.0)  # must not raise
+    assert limiter.cooling() == 0.0
+
+
+async def test_async_mark_cooldown_makes_limiter_cool():
+    limiter = _AsyncRateLimiter(rate=6, window=60.0)
+    limiter.mark_cooldown(10.0)
+    assert limiter.cooling() == pytest.approx(10.0, abs=0.5)
+
+
+def test_async_pool_select_skips_cooling_token():
+    cooling = _AsyncRateLimiter(rate=6, window=60.0)
+    healthy = _AsyncRateLimiter(rate=6, window=60.0)
+    cooling.mark_cooldown(10.0)
+    pool = _AsyncTokenPool([("cooling-tok", cooling), ("healthy-tok", healthy)])
+    token, selected = pool.select()
+    assert token == "healthy-tok"
+    assert selected is healthy
+
+
+def test_async_pool_select_returns_none_when_all_cooling():
+    a = _AsyncRateLimiter(rate=6, window=60.0)
+    b = _AsyncRateLimiter(rate=6, window=60.0)
+    a.mark_cooldown(10.0)
+    b.mark_cooldown(10.0)
+    pool = _AsyncTokenPool([("a", a), ("b", b)])
+    assert pool.select() is None
+
+
+def test_no_op_async_limiter_never_cools():
+    limiter = _NoOpAsyncLimiter()
+    limiter.mark_cooldown(10.0)  # must not raise
+    assert limiter.cooling() == 0.0

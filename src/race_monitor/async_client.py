@@ -1,17 +1,20 @@
 """Asynchronous Race Monitor API client."""
 
 import asyncio
+import logging
 from typing import Any
 
 import httpx
 
-from ._core import BASE_URL, _parse_response
+from ._core import BASE_URL, RaceMonitorHTTPError, _parse_response, _retry_after_seconds
 from ._namespaces.account import AsyncAccountNamespace
 from ._namespaces.common import AsyncCommonNamespace
 from ._namespaces.live import AsyncLiveNamespace
 from ._namespaces.race import AsyncRaceNamespace
 from ._namespaces.results import AsyncResultsNamespace
-from ._rate_limiter import get_async_pool
+from ._rate_limiter import get_pool
+
+_logger = logging.getLogger(__name__)
 
 
 class AsyncRaceMonitorClient:
@@ -23,11 +26,19 @@ class AsyncRaceMonitorClient:
             - ``list[str]``: multiple tokens, all using ``requests_per_minute``.
             - ``dict[str, int | None]``: maps each token to its own requests-per-minute
               limit; ``requests_per_minute`` is ignored.
-        retry_delay: Seconds to wait before retrying a 429 response. Defaults
+        retry_delay: Base cooldown applied to a token after a 429, in seconds.
+            Consecutive 429s on the same token double it, up to 120s. Defaults
             to 10s (the developer plan rate limit window).
         requests_per_minute: Maximum requests per minute for ``str`` and
             ``list[str]`` inputs. Defaults to 6 (developer plan limit).
-        **kwargs: Passed through to ``httpx.AsyncClient`` (e.g. ``transport`` for testing).
+        max_retries: Maximum retries after 429 responses per request before
+            raising :class:`RaceMonitorHTTPError`. Defaults to 5.
+        **kwargs: Passed through to ``httpx.AsyncClient`` (e.g. ``transport`` for
+            testing, or ``timeout`` — defaults to 30 seconds if not given).
+
+    Note:
+        Budgets are shared per token process-wide, including with
+        :class:`~race_monitor.RaceMonitorClient` instances using the same token.
 
     Example::
 
@@ -45,6 +56,7 @@ class AsyncRaceMonitorClient:
         api_token: str | list[str] | dict[str, int | None],
         retry_delay: float = 10.0,
         requests_per_minute: int | None = 6,
+        max_retries: int = 5,
         **kwargs,
     ) -> None:
         """Initialize the client. See class docstring for parameter details."""
@@ -60,8 +72,10 @@ class AsyncRaceMonitorClient:
             token_rates = api_token
         else:
             raise TypeError("api_token must be a str, list[str], or dict[str, int | None]")
-        self._pool = get_async_pool(token_rates, 60.0)
+        self._pool = get_pool(token_rates, 60.0)
         self._retry_delay = retry_delay
+        self._max_retries = max_retries
+        kwargs.setdefault("timeout", 30)
         self._http = httpx.AsyncClient(**kwargs)
         self.account = AsyncAccountNamespace(self._post)
         self.common = AsyncCommonNamespace(self._post)
@@ -78,26 +92,40 @@ class AsyncRaceMonitorClient:
         """Exit the async context manager."""
         return await self._http.__aexit__(*args)
 
+    async def aclose(self) -> None:
+        """Close the underlying HTTP connection pool.
+
+        Use this when the client is not managed by an ``async with`` block.
+        """
+        await self._http.aclose()
+
     async def _post(self, path: str, **kwargs) -> dict[str, Any]:
         """POST to the API, selecting the least-loaded token and retrying on 429.
 
-        A 429 puts the offending token in cooldown for ``retry_delay`` seconds so
-        the next attempt switches to another token; we only sleep once every token
-        is cooling down.
+        A 429 puts the offending token in an escalating cooldown so the next
+        attempt rotates to another token; we only sleep when every token is
+        unavailable. After ``max_retries`` retries the request fails with
+        :class:`RaceMonitorHTTPError`.
         """
+        attempts = 0
         while True:
-            selected = self._pool.select()
-            if selected is None:
-                await asyncio.sleep(self._pool.cooldown_wait())
+            acquired = self._pool.try_acquire()
+            if acquired is None:
+                wait = self._pool.wait_time()
+                _logger.info("All tokens rate-limited or cooling; sleeping %.2fs", wait)
+                await asyncio.sleep(wait)
                 continue
-            token, limiter = selected
-            ts = await limiter.acquire()
+            token, budget = acquired
             data = {**kwargs, "apiToken": token}
-            response = await self._http.post(f"{BASE_URL}{path}", data=data, timeout=30)
+            response = await self._http.post(f"{BASE_URL}{path}", data=data)
             if response.status_code == 429:
-                limiter.release(ts)
-                limiter.mark_cooldown(self._retry_delay)
+                budget.release()
+                budget.mark_cooldown(self._retry_delay, _retry_after_seconds(response))
+                attempts += 1
+                if attempts > self._max_retries:
+                    raise RaceMonitorHTTPError(429, response.text)
                 continue
+            budget.note_success()
             return _parse_response(response)
 
     async def post(self, path: str, **kwargs) -> dict[str, Any]:

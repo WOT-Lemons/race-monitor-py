@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 import pytest
 
@@ -82,30 +84,22 @@ def test_budget_try_acquire_called_on_each_attempt(make_client, monkeypatch):
     assert calls == [1, 1]
 
 
-async def test_async_rate_limiter_acquire_called_before_request(make_async_client, monkeypatch):
-    acquire_calls = []
+async def test_async_budget_try_acquire_called_before_request(make_async_client, monkeypatch):
+    calls = []
     client, _ = make_async_client((200, SUCCESS))
-
-    async def mock_acquire():
-        acquire_calls.append(1)
-        return 0.0
-
-    monkeypatch.setattr(client._pool._entries[0][1], "acquire", mock_acquire)
+    budget = client._pool._entries[0][1]
+    monkeypatch.setattr(budget, "try_acquire", lambda: calls.append(1) or 0.0)
     await client.post("/v2/Race/RaceDetails", raceID=1)
-    assert acquire_calls == [1]
+    assert calls == [1]
 
 
-async def test_async_rate_limiter_acquire_called_on_each_attempt(make_async_client, monkeypatch):
-    acquire_calls = []
+async def test_async_budget_try_acquire_called_on_each_attempt(make_async_client, monkeypatch):
+    calls = []
     client, _ = make_async_client((429, {}), (200, SUCCESS), retry_delay=0)
-
-    async def mock_acquire():
-        acquire_calls.append(1)
-        return 0.0
-
-    monkeypatch.setattr(client._pool._entries[0][1], "acquire", mock_acquire)
+    budget = client._pool._entries[0][1]
+    monkeypatch.setattr(budget, "try_acquire", lambda: calls.append(1) or 0.0)
     await client.post("/v2/Race/RaceDetails", raceID=1)
-    assert acquire_calls == [1, 1]
+    assert calls == [1, 1]
 
 
 # --- Multi-token constructor ---
@@ -254,16 +248,11 @@ async def test_async_empty_dict_raises():
 
 
 async def test_async_post_injects_token_from_pool(make_async_client, monkeypatch):
-    from race_monitor._rate_limiter import _AsyncRateLimiter
+    from race_monitor._rate_limiter import _TokenBudget
 
     client, transport = make_async_client((200, SUCCESS))
-    fake_limiter = _AsyncRateLimiter(rate=6, window=60.0)
-
-    async def mock_acquire():
-        pass
-
-    fake_limiter.acquire = mock_acquire
-    monkeypatch.setattr(client._pool, "select", lambda: ("injected-async-token", fake_limiter))
+    fake_budget = _TokenBudget(rate=6, window=60.0)
+    monkeypatch.setattr(client._pool, "try_acquire", lambda: ("injected-async-token", fake_budget))
     await client.post("/v2/Race/RaceDetails", raceID=1)
     assert b"apiToken=injected-async-token" in transport.last_request.read()
 
@@ -475,3 +464,77 @@ def test_user_timeout_overrides_default():
         api_token="timeout-custom-tok", timeout=httpx.Timeout(60), transport=MockTransport()
     )
     assert client._http.timeout == httpx.Timeout(60)
+
+
+# --- async: error paths, lifecycle, loop reuse, shared budgets ---
+
+
+async def test_async_post_raises_on_api_failure(make_async_client):
+    client, _ = make_async_client((200, FAILURE))
+    with pytest.raises(RaceMonitorError, match="bad token"):
+        await client.post("/v2/Race/RaceDetails", raceID=1)
+
+
+async def test_async_post_raises_http_error_on_403(make_async_client):
+    client, _ = make_async_client((403, FAILURE))
+    with pytest.raises(RaceMonitorHTTPError) as exc_info:
+        await client.post("/v2/Race/RaceDetails", raceID=1)
+    assert exc_info.value.status_code == 403
+
+
+async def test_async_max_retries_exhaustion_raises_429(make_async_client):
+    client, transport = make_async_client(*[(429, {})] * 3, retry_delay=0, max_retries=2)
+    with pytest.raises(RaceMonitorHTTPError) as exc_info:
+        await client.post("/v2/Race/RaceDetails", raceID=1)
+    assert exc_info.value.status_code == 429
+    assert transport._index == 3
+
+
+async def test_aclose_closes_http_client(make_async_client):
+    client, _ = make_async_client()
+    await client.aclose()
+    assert client._http.is_closed
+
+
+async def test_async_user_timeout_overrides_default():
+    from race_monitor import AsyncRaceMonitorClient
+
+    client = AsyncRaceMonitorClient(
+        api_token="async-timeout-tok", timeout=httpx.Timeout(60), transport=AsyncMockTransport()
+    )
+    assert client._http.timeout == httpx.Timeout(60)
+
+
+def test_async_client_survives_multiple_event_loops():
+    """Regression: budgets hold no event-loop-bound state (old asyncio.Lock bug)."""
+    from race_monitor import AsyncRaceMonitorClient
+
+    async def use_client():
+        transport = AsyncMockTransport((200, SUCCESS))
+        client = AsyncRaceMonitorClient(api_token="loop-reuse-tok", transport=transport)
+        result = await client.post("/v2/Race/RaceDetails", raceID=1)
+        await client.aclose()
+        return result
+
+    assert asyncio.run(use_client()) == SUCCESS
+    assert asyncio.run(use_client()) == SUCCESS
+
+
+async def test_sync_and_async_clients_share_budget():
+    """One token used from both client flavors draws from a single budget."""
+    from race_monitor import AsyncRaceMonitorClient, RaceMonitorClient
+
+    sync_client = RaceMonitorClient(
+        api_token="cross-flavor-tok",
+        requests_per_minute=2,
+        transport=MockTransport((200, SUCCESS)),
+    )
+    async_client = AsyncRaceMonitorClient(
+        api_token="cross-flavor-tok",
+        requests_per_minute=2,
+        transport=AsyncMockTransport((200, SUCCESS)),
+    )
+    assert sync_client._pool._entries[0][1] is async_client._pool._entries[0][1]
+    sync_client.post("/v2/Race/RaceDetails", raceID=1)
+    # The sync call consumed one of the 2 shared slots.
+    assert async_client._pool._entries[0][1].capacity() == 1

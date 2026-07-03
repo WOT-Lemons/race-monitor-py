@@ -83,10 +83,10 @@ def make_client():
 def make_async_client():
     from race_monitor import AsyncRaceMonitorClient
 
-    def _make(*responses: tuple[int, dict], retry_delay: float = 0) -> tuple:
+    def _make(*responses: tuple[int, dict], retry_delay: float = 0, **client_kwargs) -> tuple:
         transport = AsyncMockTransport(*responses)
         client = AsyncRaceMonitorClient(
-            api_token="test-token", retry_delay=retry_delay, transport=transport
+            api_token="test-token", retry_delay=retry_delay, transport=transport, **client_kwargs
         )
         return client, transport
 

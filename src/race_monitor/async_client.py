@@ -125,8 +125,9 @@ class AsyncRaceMonitorClient:
                 if attempts > self._max_retries:
                     raise RaceMonitorHTTPError(429, response.text)
                 continue
+            parsed = _parse_response(response)
             budget.note_success()
-            return _parse_response(response)
+            return parsed
 
     async def post(self, path: str, **kwargs) -> dict[str, Any]:
         """Make a POST request to the given API path."""

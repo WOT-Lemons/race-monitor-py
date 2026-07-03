@@ -444,6 +444,25 @@ def test_success_resets_backoff_escalation(make_client):
     assert client._pool._entries[0][1]._consecutive_429s == 0
 
 
+def test_error_response_does_not_reset_backoff_escalation(make_client):
+    # A 429 escalates the counter; a following non-429 error response is not a
+    # success, so it must not reset the escalation (note_success runs only after
+    # _parse_response confirms a genuine success).
+    client, _ = make_client((429, {}), (500, {}), retry_delay=0)
+    with pytest.raises(RaceMonitorHTTPError):
+        client.post("/v2/Race/RaceDetails", raceID=1)
+    assert client._pool._entries[0][1]._consecutive_429s == 1
+
+
+def test_unsuccessful_200_does_not_reset_backoff_escalation(make_client):
+    # A 200 body with Successful=False makes _parse_response raise; escalation
+    # from a prior 429 must survive because no genuine success occurred.
+    client, _ = make_client((429, {}), (200, FAILURE), retry_delay=0)
+    with pytest.raises(RaceMonitorError, match="bad token"):
+        client.post("/v2/Race/RaceDetails", raceID=1)
+    assert client._pool._entries[0][1]._consecutive_429s == 1
+
+
 def test_close_closes_http_client(make_client):
     client, _ = make_client()
     client.close()

@@ -8,9 +8,11 @@ from race_monitor._rate_limiter import (
     _NoOpAsyncLimiter,
     _NoOpSyncLimiter,
     _SyncRateLimiter,
+    _TokenBudget,
     _TokenPool,
     get_async_limiter,
     get_async_pool,
+    get_budget,
     get_sync_limiter,
     get_sync_pool,
 )
@@ -480,3 +482,140 @@ def test_no_op_async_limiter_honors_cooldown():
     assert limiter.cooling() == 0.0
     limiter.mark_cooldown(10.0)
     assert limiter.cooling() == pytest.approx(10.0, abs=0.5)
+
+
+# --- _TokenBudget ---
+
+
+def test_budget_rejects_invalid_rate():
+    with pytest.raises(ValueError, match="rate must be >= 1"):
+        _TokenBudget(rate=0)
+
+
+def test_budget_try_acquire_takes_slots_within_rate():
+    budget = _TokenBudget(rate=3, window=60.0)
+    for _ in range(3):
+        assert budget.try_acquire() == 0.0
+    assert budget.capacity() == 0
+
+
+def test_budget_try_acquire_reports_window_wait(monkeypatch):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    budget = _TokenBudget(rate=2, window=60.0)
+    assert budget.try_acquire() == 0.0
+    assert budget.try_acquire() == 0.0
+    assert budget.try_acquire() == pytest.approx(60.0)  # full — refused, nothing taken
+    assert budget.capacity() == 0
+    t[0] = 60.5
+    assert budget.try_acquire() == 0.0  # oldest slots evicted
+
+
+def test_budget_try_acquire_refuses_while_cooling():
+    budget = _TokenBudget(rate=6, window=60.0)
+    budget.mark_cooldown(10.0)
+    wait = budget.try_acquire()
+    assert wait == pytest.approx(10.0, abs=0.5)
+    assert budget.capacity() == 6  # refusal must not consume a slot
+
+
+def test_budget_next_available_is_read_only(monkeypatch):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    budget = _TokenBudget(rate=1, window=60.0)
+    assert budget.next_available() == 0.0
+    assert budget.capacity() == 1  # nothing consumed
+    budget.try_acquire()
+    assert budget.next_available() == pytest.approx(60.0)
+
+
+def test_budget_release_refunds_slot():
+    budget = _TokenBudget(rate=2, window=60.0)
+    budget.try_acquire()
+    assert budget.capacity() == 1
+    budget.release()
+    assert budget.capacity() == 2
+
+
+def test_budget_cooldown_expires(monkeypatch):
+    t = [100.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    budget = _TokenBudget(rate=6, window=60.0)
+    budget.mark_cooldown(10.0)
+    assert budget.cooling() == 10.0
+    t[0] = 110.0
+    assert budget.cooling() == 0.0
+
+
+def test_budget_consecutive_429_cooldowns_escalate(monkeypatch):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    budget = _TokenBudget(rate=6, window=60.0)
+    for expected in [10.0, 20.0, 40.0, 80.0, 120.0, 120.0]:  # capped at MAX_BACKOFF
+        budget.mark_cooldown(10.0)
+        assert budget.cooling() == pytest.approx(expected)
+        t[0] += expected  # let the cooldown expire before the next 429
+    budget.note_success()
+    budget.mark_cooldown(10.0)
+    assert budget.cooling() == pytest.approx(10.0)  # escalation reset
+
+
+def test_budget_retry_after_overrides_when_larger(monkeypatch):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    budget = _TokenBudget(rate=6, window=60.0)
+    budget.mark_cooldown(10.0, retry_after=45.0)
+    assert budget.cooling() == pytest.approx(45.0)
+
+
+def test_budget_retry_after_ignored_when_smaller(monkeypatch):
+    t = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: t[0])
+    budget = _TokenBudget(rate=6, window=60.0)
+    budget.mark_cooldown(10.0, retry_after=2.0)
+    assert budget.cooling() == pytest.approx(10.0)
+
+
+def test_unlimited_budget_never_throttles():
+    budget = _TokenBudget(rate=None, window=60.0)
+    for _ in range(100):
+        assert budget.try_acquire() == 0.0
+    assert budget.capacity() == 10**9
+
+
+def test_unlimited_budget_honors_cooldown():
+    budget = _TokenBudget(rate=None, window=60.0)
+    budget.mark_cooldown(10.0)
+    assert budget.try_acquire() == pytest.approx(10.0, abs=0.5)
+
+
+# --- get_budget registry ---
+
+
+def test_get_budget_same_token_returns_same_instance():
+    a = get_budget("budget-same", 6, 60.0)
+    b = get_budget("budget-same", 6, 60.0)
+    assert a is b
+
+
+def test_get_budget_different_tokens_return_different_instances():
+    a = get_budget("budget-diff-a", 6, 60.0)
+    b = get_budget("budget-diff-b", 6, 60.0)
+    assert a is not b
+
+
+def test_get_budget_conflicting_rate_raises():
+    get_budget("budget-conflict", 6, 60.0)
+    with pytest.raises(ValueError, match="already exists"):
+        get_budget("budget-conflict", 10, 60.0)
+
+
+def test_get_budget_sets_label():
+    budget = get_budget("budget-label-abcd", 6, 60.0)
+    assert budget._label == "abcd"
+
+
+def test_get_budget_registers_unlimited_tokens():
+    a = get_budget("budget-unlimited", None, 60.0)
+    b = get_budget("budget-unlimited", None, 60.0)
+    assert a is b  # unlimited tokens share cooldown state too

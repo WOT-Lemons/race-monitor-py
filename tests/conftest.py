@@ -69,10 +69,10 @@ def _reset_rate_limiters():
 def make_client():
     from race_monitor import RaceMonitorClient
 
-    def _make(*responses: tuple[int, dict], retry_delay: float = 0) -> tuple:
+    def _make(*responses: tuple[int, dict], retry_delay: float = 0, **client_kwargs) -> tuple:
         transport = MockTransport(*responses)
         client = RaceMonitorClient(
-            api_token="test-token", retry_delay=retry_delay, transport=transport
+            api_token="test-token", retry_delay=retry_delay, transport=transport, **client_kwargs
         )
         return client, transport
 

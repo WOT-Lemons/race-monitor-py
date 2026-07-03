@@ -64,24 +64,22 @@ def test_context_manager(make_client):
     assert result == SUCCESS
 
 
-def test_rate_limiter_acquire_called_before_request(make_client, monkeypatch):
-    acquire_calls = []
+def test_budget_try_acquire_called_before_request(make_client, monkeypatch):
+    calls = []
     client, _ = make_client((200, SUCCESS))
-    monkeypatch.setattr(
-        client._pool._entries[0][1], "acquire", lambda: acquire_calls.append(1) or 0.0
-    )
+    budget = client._pool._entries[0][1]
+    monkeypatch.setattr(budget, "try_acquire", lambda: calls.append(1) or 0.0)
     client.post("/v2/Race/RaceDetails", raceID=1)
-    assert acquire_calls == [1]
+    assert calls == [1]
 
 
-def test_rate_limiter_acquire_called_on_each_attempt(make_client, monkeypatch):
-    acquire_calls = []
+def test_budget_try_acquire_called_on_each_attempt(make_client, monkeypatch):
+    calls = []
     client, _ = make_client((429, {}), (200, SUCCESS), retry_delay=0)
-    monkeypatch.setattr(
-        client._pool._entries[0][1], "acquire", lambda: acquire_calls.append(1) or 0.0
-    )
+    budget = client._pool._entries[0][1]
+    monkeypatch.setattr(budget, "try_acquire", lambda: calls.append(1) or 0.0)
     client.post("/v2/Race/RaceDetails", raceID=1)
-    assert acquire_calls == [1, 1]
+    assert calls == [1, 1]
 
 
 async def test_async_rate_limiter_acquire_called_before_request(make_async_client, monkeypatch):
@@ -170,21 +168,19 @@ def test_empty_list_raises():
         RaceMonitorClient(api_token=[], transport=transport)
 
 
-def test_none_requests_per_minute_builds_noop_limiter():
+def test_none_requests_per_minute_builds_unlimited_budget():
     from race_monitor import RaceMonitorClient
-    from race_monitor._rate_limiter import _NoOpSyncLimiter
 
     transport = MockTransport((200, {"Successful": True}))
     client = RaceMonitorClient(
         api_token="unlimited-tok", requests_per_minute=None, transport=transport
     )
-    _, limiter = client._pool._entries[0]
-    assert isinstance(limiter, _NoOpSyncLimiter)
+    _, budget = client._pool._entries[0]
+    assert budget._rate is None
 
 
-def test_list_with_none_rate_builds_noop_limiters():
+def test_list_with_none_rate_builds_unlimited_budgets():
     from race_monitor import RaceMonitorClient
-    from race_monitor._rate_limiter import _NoOpSyncLimiter
 
     transport = MockTransport((200, {"Successful": True}))
     client = RaceMonitorClient(
@@ -192,16 +188,16 @@ def test_list_with_none_rate_builds_noop_limiters():
         requests_per_minute=None,
         transport=transport,
     )
-    for _, limiter in client._pool._entries:
-        assert isinstance(limiter, _NoOpSyncLimiter)
+    for _, budget in client._pool._entries:
+        assert budget._rate is None
 
 
 def test_post_injects_token_from_pool(make_client, monkeypatch):
-    from race_monitor._rate_limiter import _SyncRateLimiter
+    from race_monitor._rate_limiter import _TokenBudget
 
     client, transport = make_client((200, SUCCESS))
-    fake_limiter = _SyncRateLimiter(rate=6, window=60.0)
-    monkeypatch.setattr(client._pool, "select", lambda: ("injected-token", fake_limiter))
+    fake_budget = _TokenBudget(rate=6, window=60.0)
+    monkeypatch.setattr(client._pool, "try_acquire", lambda: ("injected-token", fake_budget))
     client.post("/v2/Race/RaceDetails", raceID=1)
     assert b"apiToken=injected-token" in transport.last_request.read()
 
@@ -400,3 +396,82 @@ async def test_async_429_on_unlimited_token_backs_off(monkeypatch):
     result = await client.post("/v2/Race/RaceDetails", raceID=1)
     assert result == SUCCESS
     assert sleeps == [pytest.approx(60.0, abs=0.5)]
+
+
+# --- max_retries / Retry-After / lifecycle / timeout ---
+
+
+class _RetryAfterTransport(httpx.BaseTransport):
+    """First request 429s with a Retry-After header; second succeeds."""
+
+    def __init__(self) -> None:
+        self.requests = 0
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        self.requests += 1
+        if self.requests == 1:
+            return httpx.Response(429, headers={"Retry-After": "45"}, json={})
+        return httpx.Response(200, json=SUCCESS)
+
+
+def test_max_retries_exhaustion_raises_429(make_client):
+    client, transport = make_client(*[(429, {})] * 3, retry_delay=0, max_retries=2)
+    with pytest.raises(RaceMonitorHTTPError) as exc_info:
+        client.post("/v2/Race/RaceDetails", raceID=1)
+    assert exc_info.value.status_code == 429
+    # initial attempt + 2 retries = exactly 3 requests, then give up
+    assert transport._index == 3
+
+
+def test_max_retries_not_exhausted_by_eventual_success(make_client):
+    client, _ = make_client((429, {}), (429, {}), (200, SUCCESS), retry_delay=0, max_retries=2)
+    assert client.post("/v2/Race/RaceDetails", raceID=1) == SUCCESS
+
+
+def test_retry_after_header_extends_cooldown(monkeypatch):
+    from race_monitor import RaceMonitorClient
+
+    clock = [0.0]
+    monkeypatch.setattr("race_monitor._rate_limiter.time.monotonic", lambda: clock[0])
+    sleeps: list[float] = []
+
+    def _sleep(secs):
+        sleeps.append(secs)
+        clock[0] += secs
+
+    monkeypatch.setattr("race_monitor.client.time.sleep", _sleep)
+    client = RaceMonitorClient(
+        api_token="retry-after-tok", retry_delay=10, transport=_RetryAfterTransport()
+    )
+    result = client.post("/v2/Race/RaceDetails", raceID=1)
+    assert result == SUCCESS
+    # Retry-After: 45 beats the computed 10s first-429 cooldown.
+    assert sleeps == [pytest.approx(45.0)]
+
+
+def test_success_resets_backoff_escalation(make_client):
+    client, _ = make_client((429, {}), (200, SUCCESS), retry_delay=0)
+    client.post("/v2/Race/RaceDetails", raceID=1)
+    assert client._pool._entries[0][1]._consecutive_429s == 0
+
+
+def test_close_closes_http_client(make_client):
+    client, _ = make_client()
+    client.close()
+    assert client._http.is_closed
+
+
+def test_default_timeout_is_30s():
+    from race_monitor import RaceMonitorClient
+
+    client = RaceMonitorClient(api_token="timeout-default-tok", transport=MockTransport())
+    assert client._http.timeout == httpx.Timeout(30)
+
+
+def test_user_timeout_overrides_default():
+    from race_monitor import RaceMonitorClient
+
+    client = RaceMonitorClient(
+        api_token="timeout-custom-tok", timeout=httpx.Timeout(60), transport=MockTransport()
+    )
+    assert client._http.timeout == httpx.Timeout(60)

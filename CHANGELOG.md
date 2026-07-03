@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.6.1...v0.7.0) (2026-07-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* 429 retries are now bounded by `max_retries` (default 5) instead of retrying forever; callers that relied on infinite retries will now see `RaceMonitorHTTPError(429)` once retries are exhausted. User-supplied httpx `timeout` is now honored — previously it was ignored and every request silently used the 30s default, so callers passing a custom timeout may now observe requests timing out per their own configuration.
+
+### Features
+
+* unify rate limiter, bound 429 retries, harden error handling ([#43](https://github.com/WOT-Lemons/race-monitor-py/issues/43)) ([ce3b1c6](https://github.com/WOT-Lemons/race-monitor-py/commit/ce3b1c62b777a9c3223d2842adb45c47b0c5b9fc))
+
 ## [0.6.1](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.6.0...v0.6.1) (2026-06-29)
 
 

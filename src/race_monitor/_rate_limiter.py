@@ -384,3 +384,45 @@ def get_async_pool(token_rates: dict[str, int | None], window: float) -> _AsyncT
         limiter = _NoOpAsyncLimiter() if r is None else get_async_limiter(t, r, window)
         entries.append((t, limiter))
     return _AsyncTokenPool(entries)
+
+
+class _BudgetPool:
+    """The set of token budgets a client draws from."""
+
+    def __init__(self, entries: list[tuple[str, _TokenBudget]]) -> None:
+        self._entries = entries
+
+    def select(self) -> tuple[str, _TokenBudget] | None:
+        """Return the highest-capacity token not in 429 cooldown, or ``None``."""
+        eligible = [e for e in self._entries if e[1].cooling() == 0.0]
+        if not eligible:
+            return None
+        caps = [(e, e[1].capacity()) for e in eligible]
+        max_cap = max(c for _, c in caps)
+        candidates = [e for e, c in caps if c == max_cap]
+        return random.choice(candidates)
+
+    def try_acquire(self) -> tuple[str, _TokenBudget] | None:
+        """One non-blocking acquisition attempt: select a token, then take a slot.
+
+        Returns ``(token, budget)`` on success, or ``None`` when nothing is
+        available right now — including when the selected token refuses because
+        it entered cooldown or filled up between selection and acquisition.
+        Callers loop: sleep ``wait_time()`` seconds, then try again.
+        """
+        selected = self.select()
+        if selected is None:
+            return None
+        token, budget = selected
+        if budget.try_acquire() == 0.0:
+            return token, budget
+        return None
+
+    def wait_time(self) -> float:
+        """Seconds until the soonest budget could accept a request."""
+        return min(b.next_available() for _, b in self._entries)
+
+
+def get_pool(token_rates: dict[str, int | None], window: float) -> _BudgetPool:
+    """Build a pool of shared per-token budgets (one registry for sync and async)."""
+    return _BudgetPool([(t, get_budget(t, r, window)) for t, r in token_rates.items()])

@@ -148,7 +148,12 @@ class LiveCompetitor(TypedDict):
 
 
 class LiveLap(TypedDict):
-    """A single lap entry within a live racer's history."""
+    """A single lap entry within a live racer's history.
+
+    Note: live endpoints return ``FlagStatus`` as a string; the results
+    endpoints return it as an int (API inconsistency — verified against
+    APIDocs, 2026-07-02). Do not "fix" one to match the other.
+    """
 
     Lap: str
     Position: str
@@ -186,7 +191,12 @@ class StreamingConnectionInfo(TypedDict):
 
 
 class LiveSessionState(TypedDict):
-    """Full live session state snapshot."""
+    """Full live session state snapshot.
+
+    Note: live endpoints return ``FlagStatus`` as a string; the results
+    endpoints return it as an int (API inconsistency — verified against
+    APIDocs, 2026-07-02).
+    """
 
     RunNumber: str
     SessionName: str
@@ -221,7 +231,12 @@ class WebTimingDetails(TypedDict):
 
 
 class LapTime(TypedDict):
-    """A single lap time entry within a results competitor."""
+    """A single lap time entry within a results competitor.
+
+    Note: results endpoints return ``FlagStatus`` as an int; the live
+    endpoints return it as a string (API inconsistency — verified against
+    APIDocs, 2026-07-02). Do not "fix" one to match the other.
+    """
 
     Lap: str
     LapTime: str

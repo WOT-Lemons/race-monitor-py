@@ -56,23 +56,21 @@ class AsyncMockTransport(httpx.AsyncBaseTransport):
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limiters():
-    from race_monitor._rate_limiter import _async_limiters, _sync_limiters
+    from race_monitor._rate_limiter import _budgets
 
-    _sync_limiters.clear()
-    _async_limiters.clear()
+    _budgets.clear()
     yield
-    _sync_limiters.clear()
-    _async_limiters.clear()
+    _budgets.clear()
 
 
 @pytest.fixture
 def make_client():
     from race_monitor import RaceMonitorClient
 
-    def _make(*responses: tuple[int, dict], retry_delay: float = 0) -> tuple:
+    def _make(*responses: tuple[int, dict], retry_delay: float = 0, **client_kwargs) -> tuple:
         transport = MockTransport(*responses)
         client = RaceMonitorClient(
-            api_token="test-token", retry_delay=retry_delay, transport=transport
+            api_token="test-token", retry_delay=retry_delay, transport=transport, **client_kwargs
         )
         return client, transport
 
@@ -83,10 +81,10 @@ def make_client():
 def make_async_client():
     from race_monitor import AsyncRaceMonitorClient
 
-    def _make(*responses: tuple[int, dict], retry_delay: float = 0) -> tuple:
+    def _make(*responses: tuple[int, dict], retry_delay: float = 0, **client_kwargs) -> tuple:
         transport = AsyncMockTransport(*responses)
         client = AsyncRaceMonitorClient(
-            api_token="test-token", retry_delay=retry_delay, transport=transport
+            api_token="test-token", retry_delay=retry_delay, transport=transport, **client_kwargs
         )
         return client, transport
 

@@ -68,7 +68,14 @@ class _TokenBudget:
             return wait
 
     def release(self) -> None:
-        """Refund the most recently taken slot (the request got a 429)."""
+        """Refund a slot after a 429 (pops the newest timestamp).
+
+        Refunds *a* slot, not necessarily *the* caller's: under a budget shared
+        across concurrent callers the popped timestamp may belong to another
+        in-flight request. That is fine — the sliding window only counts slots,
+        so removing any one entry is the correct one-slot refund; the only
+        effect is the token frees up a few ms early.
+        """
         with self._lock:
             if self._timestamps:
                 self._timestamps.pop()

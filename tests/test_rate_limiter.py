@@ -1,7 +1,10 @@
+import gc
+
 import pytest
 
 from race_monitor._rate_limiter import (
     _BudgetPool,
+    _budgets,
     _TokenBudget,
     get_budget,
     get_pool,
@@ -128,9 +131,10 @@ def test_get_budget_different_tokens_return_different_instances():
 
 
 def test_get_budget_conflicting_rate_raises():
-    get_budget("budget-conflict", 6, 60.0)
+    budget = get_budget("budget-conflict", 6, 60.0)  # keep alive so the conflict stands
     with pytest.raises(ValueError, match="already exists"):
         get_budget("budget-conflict", 10, 60.0)
+    assert budget._rate == 6
 
 
 def test_get_budget_sets_label():
@@ -244,3 +248,20 @@ def test_get_pool_shares_budgets_across_pools():
     pool_a = get_pool({"pool-shared-tok": 6}, 60.0)
     pool_b = get_pool({"pool-shared-tok": 6}, 60.0)
     assert pool_a._entries[0][1] is pool_b._entries[0][1]
+
+
+def test_budget_evicted_when_unreferenced():
+    budget = get_budget("evict-tok", 6, 60.0)
+    assert "evict-tok" in _budgets
+    del budget
+    gc.collect()
+    assert "evict-tok" not in _budgets
+
+
+def test_get_budget_conflict_clears_after_release():
+    budget = get_budget("release-tok", 6, 60.0)
+    del budget
+    gc.collect()
+    # Earlier budget is gone, so a new config no longer conflicts.
+    fresh = get_budget("release-tok", 10, 60.0)
+    assert fresh._rate == 10

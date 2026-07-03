@@ -2,10 +2,11 @@ import logging
 import random
 import threading
 import time
+import weakref
 from collections import deque
 
 _logger = logging.getLogger(__name__)
-_budgets: dict[str, "_TokenBudget"] = {}
+_budgets: "weakref.WeakValueDictionary[str, _TokenBudget]" = weakref.WeakValueDictionary()
 _registry_lock = threading.Lock()
 
 MAX_BACKOFF = 120.0
@@ -116,9 +117,14 @@ def get_budget(token: str, rate: int | None, window: float) -> _TokenBudget:
     """Return the shared budget for *token*, creating it if needed.
 
     One registry serves sync and async clients, so a token used from both
-    flavors draws from a single budget. Raises ``ValueError`` if a budget
-    already exists for *token* with a different ``rate`` or ``window`` —
-    callers sharing a token must agree on the config.
+    flavors draws from a single budget. The registry holds only a weak
+    reference, so a token's budget is evicted automatically once no live
+    client references it (its pool is the sole strong reference).
+
+    Raises ``ValueError`` if a budget already exists for *token* with a
+    different ``rate`` or ``window``. Because entries are weakly held, this
+    conflict applies only to clients that coexist: once the earlier client is
+    dropped, a new client for the same token may use a different config.
     """
     with _registry_lock:
         budget = _budgets.get(token)

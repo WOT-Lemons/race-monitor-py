@@ -4,7 +4,15 @@
     "config:recommended",
     ":semanticCommits"
   ],
-  "semanticCommitType": "deps",
+  "semanticCommitType": "chore",
   "semanticCommitScope": null,
-  "minimumReleaseAge": "7 days"
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "description": "Runtime dependencies ship in the published wheel, so their bumps should cut a release. Everything else Renovate touches (dev groups, GitHub Actions) defaults to a non-releasable 'chore'.",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.dependencies"],
+      "semanticCommitType": "deps"
+    }
+  ]
 }

@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Self
 
 import httpx
 
@@ -83,7 +83,7 @@ class AsyncRaceMonitorClient:
         self.race = AsyncRaceNamespace(self._post)
         self.results = AsyncResultsNamespace(self._post)
 
-    async def __aenter__(self) -> "AsyncRaceMonitorClient":
+    async def __aenter__(self) -> Self:
         """Enter the async context manager."""
         await self._http.__aenter__()
         return self

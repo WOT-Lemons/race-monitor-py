@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.7.0...v1.0.0) (2026-07-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* Python 3.10 is no longer supported; the minimum is now 3.11.
+
+### Features
+
+* drop Python 3.10 support ([#46](https://github.com/WOT-Lemons/race-monitor-py/issues/46)) ([0e38572](https://github.com/WOT-Lemons/race-monitor-py/commit/0e385724d4ae41464ab34be5dbc192407cca1a3d))
+
+
+### Miscellaneous
+
+* **deps:** update dependency astral-sh/uv to v0.11.25 ([#45](https://github.com/WOT-Lemons/race-monitor-py/issues/45)) ([31f166e](https://github.com/WOT-Lemons/race-monitor-py/commit/31f166eab4fdfc9663fd45933a638e15104dfa87))
+* **release-please:** add Miscellaneous and Dependencies changelog sections ([#47](https://github.com/WOT-Lemons/race-monitor-py/issues/47)) ([9e2254b](https://github.com/WOT-Lemons/race-monitor-py/commit/9e2254bd49e48d3ec69743b99246841c700d5f3b))
+
 ## [0.7.0](https://github.com/WOT-Lemons/race-monitor-py/compare/v0.6.1...v0.7.0) (2026-07-03)
 
 

@@ -3,7 +3,6 @@
   "release-type": "python",
   "packages": {
     ".": {
-      "bump-minor-pre-major": true,
       "initial-version": "0.1.0"
     }
   }

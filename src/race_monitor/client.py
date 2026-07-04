@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Any
+from typing import Any, Self
 
 import httpx
 
@@ -83,7 +83,7 @@ class RaceMonitorClient:
         self.race = RaceNamespace(self._post)
         self.results = ResultsNamespace(self._post)
 
-    def __enter__(self) -> "RaceMonitorClient":
+    def __enter__(self) -> Self:
         """Enter the context manager."""
         self._http.__enter__()
         return self

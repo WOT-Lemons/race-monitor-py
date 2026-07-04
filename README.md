@@ -6,7 +6,7 @@ A Python library for [Race Monitor](https://www.race-monitor.com/)
 
 ## Requirements
 
-- Python 3.10 or later
+- Python 3.11 or later
 - A Race Monitor API token — obtainable from your account at [race-monitor.com](https://www.race-monitor.com/)
 
 ## Installation

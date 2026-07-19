@@ -7,6 +7,11 @@
   "semanticCommitType": "chore",
   "semanticCommitScope": null,
   "minimumReleaseAge": "7 days",
+  "lockFileMaintenance": {
+    "description": "Renovate's pep621 manager only re-locks when a pyproject.toml constraint changes, so versions that already satisfy our ranges (transitive deps especially) freeze in uv.lock between constraint bumps. Lock file maintenance runs a periodic full re-resolve (the automated equivalent of 'uv lock --upgrade') and opens a PR, gated by the existing 'uv lock --check' + pytest matrix. uv.lock is a dev/CI artifact and is not part of the published wheel — consumers resolve against the project.dependencies ranges, not our pins — so a lock refresh changes nothing that ships to PyPI. That makes these updates a non-releasable 'chore' (inherited from the top-level default), unlike runtime-dependency bumps which alter the wheel's metadata and cut a release.",
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
   "packageRules": [
     {
       "description": "Runtime dependencies ship in the published wheel, so their bumps should cut a release. Everything else Renovate touches (dev groups, GitHub Actions) defaults to a non-releasable 'chore'.",
